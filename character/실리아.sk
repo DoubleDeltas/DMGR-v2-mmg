@@ -1,0 +1,527 @@
+on script load:
+	set {실리아::체력} to 1000
+	set {실리아::이동속도} to 1.0
+	set {실리아::히트박스} to 1.0
+	
+	set {실리아::평::피해량} to 200
+	set {실리아::평::공격속도} to 1
+	set {실리아::평::사거리} to 8
+
+	set {실리아::S1::치명타계수} to 2
+
+	set {실리아::1::쿨타임} to 9
+	set {실리아::1::피해량} to 200
+	set {실리아::1::사거리} to 20
+
+	set {실리아::2::쿨타임} to 20
+	set {실리아::2::사거리} to 16
+
+	set {실리아::3::쿨타임} to 5
+	set {실리아::3::피해량} to 350
+	set {실리아::3::사거리} to 3.5
+	set {실리아::3::최대시간} to 10
+
+	set {실리아::4::지속시간} to 4
+	set {실리아::4::충전량} to 8000
+
+	set {실리아::점수::암살} to 20
+	set {실리아::점수::백어택} to 7
+	set {실리아::점수::연풍 가르기} to 6
+	set {실리아::점수::적 띄움} to 10
+	set {실리아::점수::일격} to 8
+	set {실리아::점수::궁극기 보너스} to 25
+
+	set {실리아::특성::이름1} to "백어택"
+	set {실리아::특성::1} to "||&f적을 뒤에서 타격하면 &e⬆&c⚔ 치명타&f를 입힙니다.||||&e⬆&c⚔ &f×2.0"
+	set {실리아::패시브::이름1} to "상승 기류"
+	set {실리아::패시브::1} to "||&7벽타기&f와 &7공중 점프&f를 할 수 있습니다.||||&7&l[좌클릭] &f벽타기 &7&l[SPACE] &f공중 점프"
+	set {실리아::액티브::이름1} to "연풍 가르기"
+	set {실리아::액티브::1} to "||&f앞으로 이동하며 넓은 범위를 베어 &c⚔ 광역 피해&f를 입힙니다.||&f적 처치 시 쿨타임이 초기화됩니다.||||&c⚔ &f200||&c✸ &f2.5m||&f⟳ &f9초||||&7&l[1] &f사용"
+	set {실리아::액티브::이름2} to "진권풍"
+	set {실리아::액티브::2} to "||&f보는 방향으로 회오리를 타고 날아갑니다.||&f재사용 시 회오리에서 내리며 보는 방향으로 도약합니다.||&f회오리에 맞은 적은 공중에 뜹니다.||||&f⟳ &f20초||||&7&l[2] [우클릭] &f사용"
+	set {실리아::액티브::이름3} to "폭풍전야"
+	set {실리아::액티브::3} to "||&6⌛ 지속시간&f동안 모든 행동의 소음이 줄고 &e⬆&b➠ 속도&f가 빨라집니다.||&f사용 중 2초 후 기본 공격 시 &c⚔ 일격&f을 날려 &5➲ 밀쳐냅니다&f.||&f사용 중 최대 체력의 10％ 이상 피해를 받으면 취소됩니다.||||&6⌛ &f10초||&e⬆&b➠ &f25％||&c⚔ &f350||&c⬌ &f3.5m||&f⟳ &f1초 / 공격당할 시 5초||||&7&l[3] &f사용 / 취소"
+	set {실리아::액티브::이름4} to "폭풍의 부름"
+	set {실리아::액티브::4} to "||&6⌛ 지속시간&f동안 &e⬆&b➠ 속도&f가 빨라지며, 사용 중 기본 공격 시||&c⚔ 일격&f을 날려 &5➲ 밀쳐냅니다&f.||&f사용 중에는 '연풍 가르기' 스킬만 사용할 수 있으며,||&f적 공격 시 '연풍 가르기' 쿨타임이 초기화되고 &6⌛ 지속시간&f||&f이 증가됩니다.||||&6⌛ &f4초 (+2초)||&e⬆&b➠ &f25％||&c⚔ &f350||&c⬌ &f3.5m||&f⚡ &f8000||||&7&l[4] &f사용"
+function 실리아_P1_1(player: player):
+	set {_wallride} to parseNumber("%getMetadata({_player}, "wallride")%")
+	if {_wallride} > 9:
+		exit
+
+	loop 10 times:
+		set {_wallride} to parseNumber("%getMetadata({_player}, "wallride")%")
+		if {_wallride} > 9:
+			exit loop
+		if isNonSolid(location 0.5 up {_player}'s head) is false:
+			exit loop
+		addMetadata({_player}, "wallride", 1)
+		setCooldown("%{_player}'s id%-wallride", 5 ticks)
+
+		if isNonSolid(location 0.8 horizontally forwards {_player}'s head) is true:
+			push({_player}, vector 0, 0.42, 0, true)
+			setCooldown("%{_player}'s id%-wallride", 0 ticks)
+			exit loop
+		else:
+			if isUsingSkill({_player}, 2) is true:
+				playSound("block.stone.step", {_player}, 0.08, 0.8)
+			else:
+				playSound("block.stone.step", {_player}, 0.9, 0.5)
+			sendTitle({_player}, "", getBar(9-{_wallride}, 9, "&f"), 10 ticks, 0 ticks, 5 ticks)
+			push({_player}, vector 0, 0.45, 0, true)
+			wait 3 tick
+
+	while (check [block at location 0.1 down {_player} is air]) or (check [{_player} isn't on ground]) is true:
+		wait 1 tick
+
+	resetMetadata({_player}, "wallride")
+function 실리아_P1_2(player: player):
+	setCooldown("%{_player}'s id%-airjump", 10 seconds)
+	set {_loc} to {_player}'s location
+	set {_rloc} to {_player}'s location
+
+	loop 2 times:
+		if {_loc} = {_rloc}:
+			wait 1 tick
+			set {_rloc} to {_player}'s location
+	if x-coord of {_loc} = x-coord of {_rloc}:
+		if z-coord of {_loc} = z-coord of {_rloc}:
+			set {_rloc} to location 0.2 horizontally forwards {_player}
+	set y-coord of {_rloc} to y-coord of {_loc}
+	set {_vel} to getLine({_loc}, {_rloc}, 0.35)
+	add 0.5 to y of {_vel}
+	push({_player}, {_vel}, true)
+
+	if isUsingSkill({_player}, 2) is true:
+		playSound("entity.llama.swag", {_player}, 0.08, 1.4)
+		playSound("block.cloth.step", {_player}, 0.08, 1.4)
+	else:
+		playSound("entity.llama.swag", {_player}, 0.8, 1.2)
+		playSound("block.cloth.step", {_player}, 0.8, 1.2)
+	wait 1 tick
+
+	while {_player}.isOnGround() is false:
+		if getCooldown("%{_player}'s id%-airjump") > 0 ticks:
+			wait 1 tick
+		else:
+			exit
+
+	setCooldown("%{_player}'s id%-airjump", 0 ticks)
+function 실리아_평(player: player):
+	if isUsingSkill({_player}, 2) is true:
+		setSkillCooldown({_player}, 2, 1)
+
+	if (check [getMetadata({_player}, "3-일격") is not set] -> [isUsingSkill({_player}, 3) is false]) is true:
+		setItemCooldown({_player}, parseTimespan(skill({_player}, "평::공격속도")*20))
+		apply mining fatigue of tier 6 without particles to {_player} for parseTimespan(skill({_player}, "평::공격속도")*20) replacing existing effect
+		if getMetadata({_player}, "swing") is not set:
+			setMetadata({_player}, "swing", true)
+			set {_swing} to true
+		else:
+			resetMetadata({_player}, "swing")
+		playSound("random.gun2.knife_leftclick", {_player}, 0.8, 1)
+		playSound("random.swordhit", {_player}, 0.7, 1.2)
+		playSound("new.item.trident.riptide_1", {_player}, 0.6, 1.3)
+		set {_ploc} to location of {_player}'s head
+		set {_loc} to location of {_ploc}
+		set {_dir} to getLineOfSight({_player})
+		set {_speed} to 35
+
+		while distance between {_ploc} and {_loc} < skill({_player}, "평::사거리"):
+			add 1 to {_i}
+			if isNonSolid({_loc}~{_dir}) is false:
+				set {__loc} to location of {_loc}
+				set {_loc} to {_loc}~{_dir}
+				loop 4 times:
+					if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+						set {__loc} to {__loc}~vMul({_dir}, 0.2)
+				meleeHit({__loc}, block at {_loc})
+				exit loop
+
+			if distance between {_ploc} and {_loc} > 0.5:
+				set {_target} to nearEnemy({_player}, {_loc}, {Skill::MELEE_HITBOX})
+				if {_target} is set:
+					if isLiving({_target}) is true:
+						set {_pdir} to vector from yaw {_loc}'s yaw and pitch 0
+						set {_tdir} to vector from yaw {_target}'s yaw and pitch 0
+						if distance between {_loc}~{_pdir} and {_loc}~{_tdir} < 0.6:
+							set {_headshot} to true
+					exit loop
+
+			set {_loc} to {_loc}~{_dir}
+			if mod({_i}, 4) = 0:
+				loop 8 times:
+					set {_axis} to getPitchAxis({_loc})
+					set {_dir2} to vMul(getYawAxis({_loc}), -1)
+					if {_swing} is not set:
+						rotate {_axis} around getRollAxis({_loc}) by +30 degrees
+						rotate {_dir2} around getRollAxis({_loc}) by +30 degrees
+					else:
+						rotate {_axis} around getRollAxis({_loc}) by -30 degrees
+						rotate {_dir2} around getRollAxis({_loc}) by -30 degrees
+					rotate {_dir2} around {_axis} by 90+(20*(loop-number-4.5)) degrees
+					# particle("crit", location 0.2 down {_loc}~vMul({_dir2}, 1), 0, 0, 0, 0, 1)
+					particleRGB(location 0.2 down {_loc}~vMul({_dir2}, 1), 0.05, 0.05, 0.05, 255, 255, 255, 2)
+			if mod({_i}/4, {_speed}/20) = 0:
+				wait 1 tick
+
+		if {_target} is set:
+			damage({_player}, {_target}, skill({_player}, "평::피해량"), {_loc}~{_dir}, "normal-평", "%{_headshot}%" parsed as boolean)
+			particle("crit", {_loc}~{_dir}, 0, 0, 0, 0.4, 10)
+			playSound("random.stab", {_target}, 1, 0.8)
+	else:
+		if getMetadata({_player}, "swing") is not set:
+			setMetadata({_player}, "swing", true)
+			set {_swing} to true
+		else:
+			resetMetadata({_player}, "swing")
+
+		if isUsingSkill({_player}, 3) is true:
+			setItemCooldown({_player}, parseTimespan(skill({_player}, "평::공격속도")*20))
+			apply mining fatigue of tier 6 without particles to {_player} for parseTimespan(skill({_player}, "평::공격속도")*20) replacing existing effect
+		else:
+			setItemCooldown({_player}, 4 ticks)
+			apply mining fatigue of tier 1 without particles to {_player} for 5 ticks replacing existing effect
+		playSound("random.gun2.shovel_leftclick", {_player}, 1.5, 0.9)
+		playSound("random.gun2.knife_rightclick", {_player}, 1.5, 0.9)
+		playSound("random.swing", {_player}, 1.5, 1.2)
+		loop 8 times:
+			if getChar({_player}) = "실리아":
+				set {_ploc} to location of {_player}'s head
+				set {_loc} to location of {_ploc}
+				set {_axis} to getYawAxis({_loc})
+				set {_dir} to vMul(getPitchAxis({_loc}), 0.3)
+				if {_swing} is not set:
+					rotate {_axis} around getRollAxis({_loc}) by -30 degrees
+					rotate {_dir} around getRollAxis({_loc}) by -30 degrees
+					rotate {_dir} around {_axis} by 90-(16*(loop-number-4.5)) degrees
+				else:
+					rotate {_axis} around getRollAxis({_loc}) by +30 degrees
+					rotate {_dir} around getRollAxis({_loc}) by +30 degrees
+					rotate {_dir} around {_axis} by 90+(16*(loop-number-4.5)) degrees
+				set {_i} to 0
+
+				while distance between {_ploc} and {_loc} < skill({_player}, "3::사거리"):
+					add 1 to {_i}
+					if isNonSolid({_loc}~{_dir}) is false:
+						set {__loc} to location of {_loc}
+						set {_loc} to {_loc}~{_dir}
+						loop 4 times:
+							if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+								set {__loc} to {__loc}~vMul({_dir}, 0.2)
+						meleeHit({__loc}, block at {_loc})
+						exit loop
+
+					if distance between {_ploc} and {_loc} > 0.5:
+						set {_target} to nearEnemy({_player}, {_loc}, {Skill::MELEE_HITBOX})
+						if {_target} is not set:
+							set {_target} to nearEnemy({_player}, location 0.5 down {_loc}, {Skill::MELEE_HITBOX})
+						if {_target} is set:
+							if canPassShield({_player}, location of {_player}'s head, location of {_target}'s head) is true:
+								if getMetadata({_target}, "shield") is true:
+									set {_tid} to getMetadata({_target}, "shieldNo")
+								else:
+									set {_tid} to {_target}'s id
+								if {_targets::%{_tid}%} is not set:
+									set {_targets::%{_tid}%} to {_target}
+									if isLiving({_target}) is true:
+										set {_pdir} to vector from yaw {_player}'s yaw and pitch 0
+										set {_tdir} to vector from yaw {_target}'s yaw and pitch 0
+										if distance between {_loc}~{_pdir} and {_loc}~{_tdir} < 0.6:
+											set {_headshot} to true
+									damage({_player}, {_target}, skill({_player}, "3::피해량"), {_loc}~{_dir}, "normal-3", "%{_headshot}%" parsed as boolean)
+									knockback({_target}, getLine(location 0.5 down {_player}, {_target}, 1))
+									particle("crit", {_loc}~{_dir}, 0, 0, 0, 0.4, 40)
+									playSound("random.stab", {_target}, 1, 0.8)
+									if isLiving({_target}) is true:
+										if isUsingSkill({_player}, 3) is true:
+											setSkillCooldown({_player}, 0, 0)
+							delete {_target}
+
+					set {_loc} to {_loc}~{_dir}
+					if {_i} = 6:
+						particleRGB(location 0.3 down {_loc}, 0.15, 0.15, 0.15, 255, 255, 255, 8)
+					if {_i} = 8:
+						particleRGB(location 0.3 down {_loc}, 0.15, 0.15, 0.15, 255, 255, 255, 8)
+					if {_i} = 10:
+						particle("crit", location 0.3 down {_loc}, 0.08, 0.08, 0.08, 0.08, 15)
+					if {_i} = 1:
+						if loop-number = 1 or 2 or 3:
+							playSound("random.gun2.shovel_leftclick", {_loc}~vMul({_dir}, 4), 1.5, 0.9)
+							playSound("random.swordhit", {_loc}~vMul({_dir}, 4), 1.5, 0.85+loop-number*0.15)
+
+				if loop-number = 1 or 2 or 6 or 7:
+					wait 1 tick
+				if isStunned({_player}) is true:
+					exit loop
+function 실리아_1_이펙트(player: player):
+	set {_sploc} to location of {_player}'s head
+	if getMetadata({_player}, "swing") is not set:
+		setMetadata({_player}, "swing", true)
+		set {_swing} to true
+	else:
+		resetMetadata({_player}, "swing")
+
+	loop 6 times:
+		if getChar({_player}) = "실리아":
+			wait 1 tick
+			if isStunned({_player}) is true:
+				exit loop
+
+			loop 12 times:
+				loop 2 times:
+					set {_ploc} to location of {_player}'s head
+					set {_loc} to location loop-number-3*1.5 forwards {_ploc}
+					set {_axis} to getYawAxis({_sploc})
+					set {_dir} to vMul(getPitchAxis({_sploc}), 1.5)
+					if {_swing} is not set:
+						rotate {_dir} around {_axis} by 90+(15*((loop-number-2)-6.5)) degrees
+					else:
+						rotate {_dir} around {_axis} by 90-(15*((loop-number-2)-6.5)) degrees
+					set {_loc} to {_loc}~vMul({_axis}, -0.5)
+					loop 3 times:
+						set {_loc} to {_loc}~vMul({_axis}, 0.3)
+						particleRGB(({_loc}~{_dir}), 0, 0, 0, 255, 255, 255, 1)
+function 실리아_1(player: player):
+	setSkillDuration({_player}, 0, -1)
+	setItemCooldown({_player}, 6 ticks, true)
+	sendSwing({_player})
+	playSound("new.item.trident.throw", {_player}, 1.5, 0.8)
+	playSound("random.swordhit", {_player}, 1.5, 0.8)
+	playSound("random.swordhit", {_player}, 1.5, 0.8)
+	# if {_player} is on ground:
+	# 	push {_player} upwards at speed 0.4
+	실리아_1_이펙트({_player})
+	set {_sploc} to location of {_player}'s head
+
+	loop 6 times:
+		if getChar({_player}) = "실리아":
+			set {_ploc} to location of {_player}'s head
+			set {_loc} to location of {_ploc}
+			set yaw of {_loc} to yaw of {_sploc}
+			set pitch of {_loc} to pitch of {_sploc}
+			set {_dir} to getLineOfSight({_sploc}, 2.4)
+			changeSight({_player}, yaw of {_sploc}, pitch of {_sploc}, false)
+			push({_player}, {_dir}, true)
+			set fall distance of {_player} to 0
+
+			loop line between {_loc} and location 3 forwards {_loc} with density 2.5:
+				if isNonSolid(loop-location) is false:
+					exit loop
+
+				if distance between {_ploc} and loop-location > 1.5:
+					loop nearEnemys({_player}, loop-location, 2.5):
+						if canPass(location of {_player}'s head, location of loop-entity's head) is true:
+							if getMetadata(loop-entity, "shield") is true:
+								set {_tid} to getMetadata(loop-entity, "shieldNo")
+							else:
+								set {_tid} to loop-entity's id
+							if {_targets::%{_tid}%} is not set:
+								set {_targets::%{_tid}%} to loop-entity
+								delete {_headshot}
+								if isLiving(loop-entity) is true:
+									set {_pdir} to vector from yaw {_sploc}'s yaw and pitch 0
+									set {_tdir} to vector from yaw loop-entity's yaw and pitch 0
+									if distance between loop-location~{_pdir} and loop-location~{_tdir} < 0.6:
+										set {_headshot} to true
+								damage({_player}, loop-entity, skill({_player}, "1::피해량"), loop-entity, "normal-1", "%{_headshot}%" parsed as boolean)
+								particle("crit", location (hitbox length of loop-entity/2) up loop-entity, 0, 0, 0, 0.4, 40)
+
+			wait 1 tick
+			loop line between location 0.5 down {_loc} and location 0.5 down location 0.5 forwards {_player}'s head with density 4:
+				particle("crit", loop-location, 0.02, 0.02, 0.02, 0, 3)
+			if isStunned({_player}) is true:
+				exit loop
+			if getCooldown("%{_player}'s id%-knockback") > 0 ticks:
+				exit loop
+
+	if getChar({_player}) = "실리아":
+		if isUsingSkill({_player}, 0) is true:
+			setSkillCooldown({_player}, 0, rounded skill({_player}, "1::쿨타임"))
+		setItemCooldown({_player}, 0 ticks)
+		push({_player}, vector 0, 0, 0, true)
+function 실리아_2(player: player):
+	if isUsingSkill({_player}, 1) is false:
+		setSkillDuration({_player}, 1, -1)
+		setItemCooldown({_player}, 20 ticks, true)
+		playSound("block.lava.extinguish", {_player}, 1, 1)
+
+		loop 20 times:
+			if getChar({_player}) = "실리아":
+				setCooldown("%{_player}'s id%-nojump", 2 ticks)
+				setCooldown("%{_player}'s id%-nosprint", 2 ticks)
+				particle("explosion", location 0.5 up {_player}, 0.2, 0, 0.2, 0.1, 3)
+				wait 1 tick
+				if isStunned({_player}) is true:
+					set {_exit} to true
+					exit loop
+
+		if getChar({_player}) = "실리아":
+			if {_exit} is not set:
+				playSound("random.swing", {_player}, 1.2, 0.6)
+				playSound("new.item.trident.riptide_3", {_player}, 1.2, 0.8)
+				set {_ploc} to location of {_player}'s head
+				set {_loc} to location of {_ploc}
+				set {_dir} to getLineOfSight({_player})
+
+				while distance between {_ploc} and {_loc} < skill({_player}, "2::사거리"):
+					if getChar({_player}) = "실리아":
+						add 1 to {_i}
+						if isNonSolid({_loc}~{_dir}) is false:
+							exit loop
+
+						if distance between {_ploc} and {_loc} > 1.5:
+							loop nearEnemys({_player}, {_loc}, 2.5):
+								if canPass({_loc}, location of loop-entity's head) is true:
+									if isLiving(loop-entity) is set:
+										if {_targets::%loop-entity%} is not set:	
+											set {_targets::%loop-entity%} to loop-entity
+											knockback(loop-entity, getLine(loop-entity, location 0.8 up loop-entity, 0.8), true)
+											if loop-entity is a player:
+												addScore({_player}, "적 띄움", {실리아::점수::적 띄움})
+												changeSight(loop-entity, yaw of {_ploc}, pitch of {_ploc}, false)
+												sendTitle(loop-entity, "&c&l공중에 뜸!", "", 10 ticks, 0 ticks, 5 ticks)
+
+						set {_loc} to {_loc}~{_dir}
+						set {_axis} to getRollAxis({_loc})
+						set {_dir2} to vMul(getYawAxis({_loc}), 0.8)
+						set {_dir3} to vMul(getYawAxis({_loc}), 0.8)
+						rotate {_dir2} around {_axis} by {_i}*10 degrees
+						rotate {_dir3} around {_axis} by 180+{_i}*10 degrees
+						set {_sloc} to {_loc}~vMul(getYawAxis({_loc}), 0.5)
+						set {_sdir} to vSpread({_dir2}, 4)
+						set {_sdir2} to vSpread({_dir3}, 4)
+						set {_x} to x of {_sdir}
+						set {_x2} to x of {_sdir2}
+						set {_y} to y of {_sdir}
+						set {_y2} to y of {_sdir2}
+						set {_z} to z of {_sdir}
+						set {_z2} to z of {_sdir2}
+						particleRGB({_sloc}~{_dir2}, 0.3, 0.3, 0.3, 255, 255, 255, 3)
+						particleRGB({_sloc}~{_dir3}, 0.3, 0.3, 0.3, 255, 255, 255, 3)
+						particle("explosion", ({_sloc}~{_dir2}), {_x}, {_y}, {_z}, 0.25, 0)
+						particle("explosion", ({_sloc}~{_dir3}), {_x2}, {_y2}, {_z2}, 0.25, 0)
+						if mod({_i}, 4) = 0:
+							if isUsingSkill({_player}, 1) is true:
+								push({_player}, vMul(normalized {_dir}, 1.2), true)
+								set fall distance of {_player} to 0
+							wait 1 tick
+
+						if isStunned({_player}) is true:
+							exit loop
+						if getCooldown("%{_player}'s id%-knockback") > 0 ticks:
+							exit loop
+			if getChar({_player}) = "실리아":
+				if isUsingSkill({_player}, 1) is true:
+					setSkillCooldown({_player}, 1, rounded skill({_player}, "2::쿨타임"))
+	else:
+		setSkillCooldown({_player}, 1, rounded skill({_player}, "2::쿨타임"))
+		playSound("random.swing", {_player}, 1, 0.7)
+		playSound("new.item.trident.riptide_2", {_player}, 1, 0.9)
+		firework(location 1 up {_player}, 255, 255, 255, 120, 255, 255, 0)
+		set {_dir} to getLineOfSight({_player}, 1.4)
+		push({_player}, {_dir}, true)
+function 실리아_3(player: player):
+	if isUsingSkill({_player}, 2) is false:
+		setSkillDuration({_player}, 2, -1)
+		playSound("block.lava.extinguish", {_player}, 0.15, 1.5)
+		playSound("entity.llama.swag", {_player}, 0.2, 1)
+		if getMetadata({_player}, "3-최대시간") is not set:
+			setMetadata({_player}, "3-최대시간", skill({_player}, "3::최대시간"))
+		set {_hp} to health of {_player}
+
+		while parseNumber("%getMetadata({_player}, "3-최대시간")%") > 0:
+			if getChar({_player}) = "실리아":
+				add 1 to {_i}
+				if isUsingSkill({_player}, 2) is false:
+					exit loop
+
+				addMetadata({_player}, "3-최대시간", -0.05)
+				set fall distance of {_player} to 0
+				if {_i} > 2*20:
+					if getMetadata({_player}, "3-일격") is not set:
+						setMetadata({_player}, "3-일격", true)
+						playSoundPlayer("new.item.trident.return", {_player}, 1, 1.2)
+				wait 1 tick
+
+				if {_hp}-health of {_player} >= max health of {_player}*0.1:
+					setSkillCooldown({_player}, 2, rounded skill({_player}, "3::쿨타임"))
+					exit loop
+				if isStunned({_player}) is true:
+					exit loop
+			else:
+				exit loop
+		if getChar({_player}) = "실리아":
+			if isUsingSkill({_player}, 2) is true:
+				setSkillCooldown({_player}, 2, 1)
+			resetMetadata({_player}, "3-일격")
+			playSound("block.lava.extinguish", {_player}, 0.15, 1.7)
+			playSound("entity.llama.swag", {_player}, 0.2, 1.2)
+	else:
+		setSkillCooldown({_player}, 2, 1)
+function 실리아_4_이펙트(player: player):
+	set {_yaw} to {_player}'s yaw
+
+	loop 22 times:
+		if getChar({_player}) = "실리아":
+			add 10 to {_yaw}
+
+			loop 6 times:
+				set {_loc} to location loop-number-1*0 forwards location 1 up {_player}'s location
+				set {_loc2} to location loop-number-1*0 forwards location 1 up {_player}'s location
+				set yaw of {_loc} to 0
+				set pitch of {_loc} to 0
+				set yaw of {_loc2} to {_yaw}
+				set pitch of {_loc2} to 0
+				if loop-number-1 < 14:
+					if {_a} is true:
+						add -0.001 to {_f}
+						if {_f} <= 0:
+							delete {_a}
+					else:
+						add 1.3 to {_f}
+						if {_f} >= 1.3:
+							set {_a} to true
+				else:
+					add -0.0025 to {_f}
+					add -4 to {_yaw}
+					subtract 1 from {_pitch}
+				add 5 to {_pitch}
+				set pitch of {_loc2} to {_pitch}
+				particleRGB(location 0 up location {_f}*-1 forwards {_loc2}, 0.15, 0.15, 0.15, 255, 255, 255, 2)
+				particle("crit", location 0 up location {_f}*-1 forwards {_loc2}, 0.1, 0.1, 0.1, 0.1, 2)
+
+			wait 1 tick
+			if isStunned({_player}) is true:
+				exit loop
+function 실리아_4(player: player):
+	setSkillDuration({_player}, 3, -1)
+	setItemCooldown({_player}, 20 ticks, true)
+	useUlt({_player})
+	setSkillCooldown({_player}, 2, 1)
+	실리아_4_이펙트({_player})
+
+	loop 20 times:
+		if getChar({_player}) = "실리아":
+			wait 1 tick
+			if isStunned({_player}) is true:
+				set {_exit} to true
+				exit loop
+
+	if getChar({_player}) = "실리아":
+		if {_exit} is not set:
+			setSkillCooldown({_player}, 0, 0)
+			# setSkillDuration({_player}, 3, rounded skill({_player}, "4::지속시간"))
+			setCooldown("%{_player}'s id%-4-지속시간", parseTimespan(skill({_player}, "4::지속시간")*20))
+			playSound("random.swordhit", {_player}, 2, 1)
+			playSound("random.swordhit", {_player}, 2, 0.7)
+			playSound("new.item.trident.return", {_player}, 2.5, 1.4)
+			playSound("new.item.trident.return", {_player}, 2.5, 1.2)
+
+			while getCooldown("%{_player}'s id%-4-지속시간") > 0 ticks:
+				if getChar({_player}) = "실리아":
+					wait 1 tick
+				else:
+					exit loop
+
+		if getChar({_player}) = "실리아":
+			setSkillCooldown({_player}, 3, -1)

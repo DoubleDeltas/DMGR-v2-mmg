@@ -1,0 +1,1515 @@
+import:
+	java.lang.String as javaString
+	org.bukkit.plugin.java.JavaPlugin
+	com.shampaggon.crackshot.CSDirector
+	com.shampaggon.crackshot.CSMinion
+	org.bukkit.Bukkit
+	org.bukkit.scoreboard.Team$Option
+	org.bukkit.scoreboard.Team$OptionStatus
+options:
+	SPREAD_RESET_RECOVERY: 0.15 seconds
+	SPREAD_MAX_RECOVERY: 0.8 seconds
+	IDLE_ULT_CHARGE: 10
+	DAMAGE_SUM_TIME_LIMIT: 10 seconds
+	KILLSTREAK_TIME_LIMIT: 10 seconds
+	KILLSTREAK_BASE_SCORE: 25
+	FASTKILL_TIME_LIMIT: 2.5 seconds
+
+#!! 거리별 데미지 감소
+function getDistantDamage(dmg: number, max: number, distance: number, half: boolean=true) :: number:
+	if {_distance} > {_max}:
+		set {_distance} to {_distance}-{_max}
+		set {_ret} to ({_dmg}/2)*(({_max}-{_distance})/{_max})+{_dmg}/2
+
+		if {_half} is true:
+			if {_ret} < {_dmg}/2:
+				set {_ret} to {_dmg}/2
+		else:
+			if {_ret} < 0:
+				set {_ret} to 0
+	else:
+		set {_ret} to {_dmg}
+
+	return {_ret}
+#!! 총기 탄퍼짐
+function gunSpread(player: player, multiplier: number, max: number, recovery: timespan, start: timespan) :: number:
+	if getCooldown("%{_player}'s id%-gundelay") = 0 ticks:
+		setCooldown("%{_player}'s id%-gunspread", 0 ticks)
+
+	addCooldown("%{_player}'s id%-gunspread", {_recovery})
+	add {@SPREAD_RESET_RECOVERY} to {_recovery}
+	setCooldown("%{_player}'s id%-gundelay", {_recovery})
+
+	if getCooldown("%{_player}'s id%-gunspread") > {@SPREAD_MAX_RECOVERY}:
+		setCooldown("%{_player}'s id%-gunspread", {@SPREAD_MAX_RECOVERY})
+
+	set {_spread} to getCooldown("%{_player}'s id%-gunspread")
+	if {_spread} > {_start}:
+		set {_value} to (({_spread} to ticks-{_start} to ticks)/20)*{_multiplier}
+		if {_value} > {_max}:
+			set {_value} to {_max}
+	
+		return {_value}
+	else:
+		return 0
+#!! 전투원별 기본무기
+function getWeapon(char: text) :: item:
+	if {_char} is "아케이스":
+		set {_item} to 1 of {hln-12}
+	if {_char} is "예거":
+		set {_item} to 1 of {mk.73elnr}
+	if {_char} is "퀘이커":
+		set {_item} to 1 of {타바르진}
+	if {_char} is "실리아":
+		set {_item} to 1 of {마체테}
+	if {_char} is "니스":
+		set {_item} to 1 of {이중성}
+	if {_char} is "에토르":
+		set {_item} to 1 of {ka-74}
+	if {_char} is "페르델":
+		set {_item} to 1 of {포텐슘기관권총}
+	if {_char} is "체드":
+		set {_item} to 1 of {아폴론}
+	if {_char} is "인페르노":
+		set {_item} to 1 of {파이어스톰}
+	if {_char} is "마그리타":
+		set {_item} to 1 of {데스페라도}
+
+	return {_item}
+#!! 전투원 선택창
+function selectChar(player: player):
+	set {_mode} to getGame({_player})
+
+	open chest with 6 row named "&c&n전투원 선택" to {_player}
+
+	set slot 0 of current inventory of {_player} to {암살자설명}
+	set slot 9 of current inventory of {_player} to {전사설명}
+	set slot 18 of current inventory of {_player} to {탱커설명}
+	set slot 36 of current inventory of {_player} to {지원가설명}
+	set slot 27 of current inventory of {_player} to {원거리딜러설명}
+	set slot 45 of current inventory of {_player} to {특수설명}
+	set slot 8 of current inventory of {_player} to {무작위} named "&e&l무작위"
+	set slot 1 of current inventory of {_player} to {gui빈칸} named "&f"
+	set slot 10 of current inventory of {_player} to {gui빈칸} named "&f"
+	set slot 19 of current inventory of {_player} to {gui빈칸} named "&f"
+	set slot 37 of current inventory of {_player} to {gui빈칸} named "&f"
+	set slot 28 of current inventory of {_player} to {gui빈칸} named "&f"
+	set slot 46 of current inventory of {_player} to {gui빈칸} named "&f"
+
+	set slot 2 of current inventory of {_player} to {실리아설명}
+	set slot 3 of current inventory of {_player} to {페르델설명}
+	set slot 4 of current inventory of {_player} to {데스문설명}
+	set slot 11 of current inventory of {_player} to {인페르노설명}
+	set slot 12 of current inventory of {_player} to {No.7설명}
+	set slot 13 of current inventory of {_player} to {베르세르크설명}
+	set slot 14 of current inventory of {_player} to {로브링어설명}
+	set slot 20 of current inventory of {_player} to {퀘이커설명}
+	set slot 21 of current inventory of {_player} to {METAR설명}
+	set slot 22 of current inventory of {_player} to {블랙크러셔설명}
+	set slot 23 of current inventory of {_player} to {쉘설명}
+	set slot 29 of current inventory of {_player} to {아케이스설명}
+	set slot 30 of current inventory of {_player} to {예거설명}
+	set slot 31 of current inventory of {_player} to {램페이지설명}
+	set slot 32 of current inventory of {_player} to {아발론설명}
+	set slot 33 of current inventory of {_player} to {체드설명}
+	set slot 38 of current inventory of {_player} to {니스설명}
+	set slot 39 of current inventory of {_player} to {벨리온설명}
+	set slot 40 of current inventory of {_player} to {델타설명}
+	set slot 41 of current inventory of {_player} to {팔라스설명}
+	set slot 47 of current inventory of {_player} to {에토르설명}
+	set slot 48 of current inventory of {_player} to {마그리타설명}
+	# update inventory {_player}
+	# update inventory current inventory of {_player}
+on region enter:
+	if "%event-region%" contains "SelectChar":
+		selectChar(player)
+on inventory click:
+	if inventory name of current inventory of player is "&c&n전투원 선택":
+		cancel event
+		if click item is player head:
+			set {_name::*} to uncolored name of click item split by " "
+			set {_char} to {_name::1}
+
+			if click type is left mouse button:
+				if getTeam(player) is set:
+					if getCooldown("%{_player}'s id%-charset") = 0 ticks:
+						setCooldown("%{_player}'s id%-charset", 3 seconds)
+
+						close player's inventory
+						if getMetadata(player, "char") is not set:
+							setChar(player, {_char})
+							wait 1 tick
+							playerTick(player)
+						else:
+							setChar(player, {_char})
+					else:
+						send "%{PREFIX}% &c동작이 너무 빠릅니다." to player
+				else:
+					send "%{PREFIX}% &c팀이 설정되어 있지 않습니다." to player
+					close player's inventory
+
+			if click type is right mouse button:
+				if line 2 of lore of click item contains "역할군":
+					open chest with 6 row named "&c&n전투원 정보" to player
+
+					loop 54 times:
+						set slot loop-number+-1 of current inventory of player to {gui빈칸}
+					set {_mspeed} to javaString.format("%%.2f", {%{_char}%::이동속도})
+					set slot 3 of current inventory of player to 1 of {%{_char}%설명} named "&c&l%{_char}%" with lore "", "&a❤ 체력 &7:: &f%{%{_char}%::체력}%", "&b➠ 이동속도 &7:: &f%{_mspeed}%", "&6▣ 히트박스 &7:: &f%{%{_char}%::히트박스}%"
+					set slot 5 of current inventory of player to getWeapon({_char})
+					set slot 19 of current inventory of player to {특성} named "&9&l특성 &7&oTrait"
+					set slot 20 of current inventory of player to air
+					set slot 21 of current inventory of player to air
+					set {_i} to 20
+					loop {%{_char}%::특성::*}:
+						if loop-index doesn't contain "이름":
+							set slot {_i} of current inventory of player to light blue glass pane named "&e&l[특성] &c%{%{_char}%::특성::이름%loop-index%}%" with lore parseLore("%loop-value%")
+							add 1 to {_i}
+					set slot 22 of current inventory of player to {패시브} named "&e&l패시브 스킬 &7&oPassive skill"
+					set slot 23 of current inventory of player to air
+					set slot 24 of current inventory of player to air
+					set slot 25 of current inventory of player to air
+					set {_i} to 23
+					loop {%{_char}%::패시브::*}:
+						if loop-index doesn't contain "이름":
+							set slot {_i} of current inventory of player to yellow glass pane named "&e&l[패시브] &c%{%{_char}%::패시브::이름%loop-index%}%" with lore parseLore("%loop-value%")
+							add 1 to {_i}
+					set slot 37 of current inventory of player to {액티브} named "&c&l액티브 스킬 &7&oActive skill"
+					set slot 38 of current inventory of player to air
+					set slot 39 of current inventory of player to air
+					set slot 40 of current inventory of player to air
+					set slot 41 of current inventory of player to air
+					set {_i} to 38
+					loop {%{_char}%::액티브::*}:
+						if loop-index doesn't contain "이름":
+							if "%loop-value%" contains "⚡":
+								set slot {_i} of current inventory of player to purple glass pane named "&e&l[궁극기] &c%{%{_char}%::액티브::이름%loop-index%}%" with lore parseLore("%loop-value%")
+								enchant slot {_i} of current inventory of player with fortune 1
+							else:
+								set slot {_i} of current inventory of player to red glass pane named "&e&l[액티브] &c%{%{_char}%::액티브::이름%loop-index%}%" with lore parseLore("%loop-value%")
+							add 1 to {_i}
+					set slot 52 of current inventory of player to 1 of {gui버튼left} named "&e&l이전"
+					set slot 53 of current inventory of player to 1 of {gui나가기} named "&c&l나가기"
+
+	if inventory name of current inventory of player is "&c&n전투원 정보":
+		cancel event
+		if name of click item is "&e&l이전":
+			selectChar(player)
+		if name of click item is "&c&l나가기":
+			close player's inventory
+#!! 자유 전투
+on region enter:
+	if "%event-region%" contains "BattlePVPWarp":
+		if getChar(player) is set:
+			if getTeam(player) is set:
+				set slot 8 of player to air
+				set {_rand} to random integer between 0.9 to 25
+				teleport(player, {battlepvp::%{_rand}%})
+				sendTitle(player, "&e&l자유 전투", "&bQ를 눌러 전투원을 선택하십시오.", 0 seconds, 0 ticks, 0 ticks)
+		exit
+	if "%event-region%" contains "BattlePVP":
+		set slot 8 of player to emerald named "&a전투원을 선택하십시오."
+		sendTitle(player, "&e&l자유 전투", "&bQ를 눌러 전투원을 선택하십시오.", 15 seconds, 0 ticks, 0 ticks)
+packet event play_client_block_dig:
+	if arbitrary penum 1 of event-packet is "DROP_ITEM":
+		if "%region at player%" contains "BattlePVP":
+			if getTeam(player) is set:
+				selectChar(player)
+				cancel event
+#!! 총기 여부 확인
+function isGun(item: item) :: boolean:
+	set {_csd} to JavaPlugin.getPlugin(CSDirector.class)
+	set {_node} to {_csd}.itemParentNode({_item}, null)[0]
+
+	return check [{_node} is set]
+#!! 총기 사격
+function fireGun(player: player):
+	set {_csd} to JavaPlugin.getPlugin(CSDirector.class)
+	set {_csm} to new CSMinion({_csd})
+	set {_name} to {_csd}.returnParentNode({_player})
+	{_csm}.weaponInteraction({_player}, {_name}, false)
+#!! 총기 재장전
+function reloadGun(player: player):
+	set {_csd} to JavaPlugin.getPlugin(CSDirector.class)
+	set {_csm} to new CSMinion({_csd})
+	set {_name} to {_csd}.returnParentNode({_player})
+	{_csd}.reloadAnimation({_player}, {_name}, true)
+#!! 총기 재장전 취소
+function cancelGunReload(player: player):
+	set {_csd} to JavaPlugin.getPlugin(CSDirector.class)
+	{_csd}.terminateReload({_player})
+#!! 총기 잔탄수
+function getGunAmmo(player: player) :: integer:
+	set {_csd} to JavaPlugin.getPlugin(CSDirector.class)
+	set {_node} to {_csd}.itemParentNode({_player}.getInventory().getItemInMainHand(), {_player})[0]
+	set {_ammo} to rounded {_csd}.getAmmoBetweenBrackets({_player}, {_node}, 1 of {_player}.getInventory().getItemInMainHand())
+
+	return {_ammo}
+function setGunAmmo(player: player, ammo: integer):
+	set {_csd} to JavaPlugin.getPlugin(CSDirector.class)
+	set {_csm} to new CSMinion({_csd})
+	set {_node} to {_csd}.itemParentNode({_player}.getInventory().getItemInMainHand(), {_player})[0]
+	{_csm}.replaceBrackets({_player}.getInventory().getItemInMainHand(), "%{_ammo}%", {_node})
+#!! 헤드샷 확인
+function isHeadshot(loc: location, entity: entity, margin: number=0) :: boolean:
+	if {_entity} is a player or zombie:
+		set {_hw} to hitbox width of {_entity}+{_margin}
+		set {_hl} to hitbox length of {_entity}
+		set {_pos1} to location ({_hw}/2)+0.08 south location ({_hw}/2)+0.08 west 0.1 up {_entity}'s head
+		set {_pos2} to location ({_hw}/2)+0.08 north location ({_hw}/2)+0.08 east 0.5+({_margin}/2) up {_entity}'s head
+		set {_pitch} to pitch of {_entity}
+
+		if {_entity} is sneaking:
+			subtract 0.35 from y-coord of {_pos1}
+			subtract 0.35 from y-coord of {_pos2}
+		if abs(pitch of {_entity}) > 35:
+			subtract 0.1 from y-coord of {_pos1}
+			subtract 0.1 from y-coord of {_pos2}
+		if abs(pitch of {_entity}) > 70:
+			subtract 0.1 from y-coord of {_pos1}
+			subtract 0.1 from y-coord of {_pos2}
+
+		return isInCube({_loc}, {_pos1}, {_pos2})
+	else:
+		return false
+#!! 아이템 쿨타임
+function getItemCooldown(player: player, global: boolean=false) :: timespan:
+	set {_material} to material of slot 4 of {_player}
+	if {_global} is true:
+		set {_material} to material of slot 1 of {_player}
+
+	if cooldown of {_material} of {_player} is not set:
+		return 0 ticks
+
+	return "%cooldown of {_material} of {_player}% ticks" parsed as timespan
+function setItemCooldown(player: player, time: timespan=999 hours, global: boolean=false):
+	set {_item} to material of slot 4 of {_player}
+	set {_skill} to material of slot 1 of {_player}
+
+	if {_global} is true:
+		if getItemCooldown({_player}) to ticks < {_time} to ticks:
+			set cooldown of {_item} of {_player} to {_time} to ticks
+		set cooldown of {_skill} of {_player} to {_time} to ticks
+	else:
+		set cooldown of {_item} of {_player} to {_time} to ticks
+
+	if {_time} != 0 seconds:
+		if {_time} != 999 seconds:
+			loop {_time} to ticks times:
+				if current hotbar slot of {_player} is 8:
+					exit loop
+				wait 1 tick
+
+	if {_global} is true:
+		if name of slot 4 of {_player} contains "&e&l기본무기":
+			replace all "&e&l기본무기" with "기본무기" in name of slot 4 of {_player}
+#!! 범위 안 가장 가까운 적
+function nearEnemy(attacker: entity, loc: location, range: number) :: entity:
+	set {_dist} to {_range}+0
+
+	loop all entities in radius {_range}+3 around {_loc}:
+		if loop-entity != {_attacker}:
+			if isDamageable(loop-entity) is true:
+				if isEnemy({_attacker}, loop-entity) is true:
+					set {_eloc} to loop-entity's location
+					set {_hw} to hitbox width of loop-entity
+					set {_hl} to hitbox length of loop-entity-0.32
+
+					if loop-entity is sneaking:
+						subtract 0.35 from {_hl}
+					if abs(pitch of {_entity}) > 35:
+						subtract 0.1 from {_hl}
+					if abs(pitch of {_entity}) > 70:
+						subtract 0.1 from {_hl}
+
+					if loop-entity is a player:
+						if skill(loop-entity, "히트박스") is set:
+							add skill(loop-entity, "히트박스")-1 to {_hw}
+							add skill(loop-entity, "히트박스")-1 to {_hl}
+					else if loop-entity is an iron golem:
+						add 0.3 to {_hw}
+						add 1.5 to {_hl}
+
+					set {_hmul} to getMetadata(loop-entity, "hitboxMul")
+					if {_hmul} is set:
+						set {_hw} to {_hw}*{_hmul}
+						set {_hl} to {_hl}*{_hmul}
+
+					set y-coord of {_eloc} to y-coord of {_loc}
+					if y-coord of {_eloc} > y-coord of location {_hl} up loop-entity:
+						set y-coord of {_eloc} to y-coord of location {_hl} up loop-entity
+					if y-coord of {_eloc} < y-coord of loop-entity:
+						set y-coord of {_eloc} to y-coord of loop-entity
+					set {_v} to vector from {_eloc} to {_loc}
+					set vector length of {_v} to ({_hw}/2)+0.1
+					set {_eloc} to {_eloc}~{_v}
+
+					if {_dist} >= distance between {_loc} and {_eloc}:
+						set {_dist} to distance between {_loc} and {_eloc}
+						set {_target} to loop-entity
+
+	return {_target}
+#!! 범위 안 모든 적
+function nearEnemys(attacker: entity, loc: location, range: number) :: entities:
+	loop all entities in radius {_range}+3 around {_loc}:
+		if loop-entity is not {_attacker}:
+			if isDamageable(loop-entity) is true:
+				if isEnemy({_attacker}, loop-entity) is true:
+					set {_dist} to {_range}+0
+
+					set {_eloc} to loop-entity's location
+					set {_hw} to hitbox width of loop-entity
+					set {_hl} to hitbox length of loop-entity-0.32
+
+					if loop-entity is sneaking:
+						subtract 0.35 from {_hl}
+					if abs(pitch of {_entity}) > 35:
+						subtract 0.1 from {_hl}
+					if abs(pitch of {_entity}) > 70:
+						subtract 0.1 from {_hl}
+
+					if loop-entity is a player:
+						if skill(loop-entity, "히트박스") is set:
+							add skill(loop-entity, "히트박스")-1 to {_hw}
+							add skill(loop-entity, "히트박스")-1 to {_hl}
+					else if loop-entity is an iron golem:
+						add 0.3 to {_hw}
+						add 1.5 to {_hl}
+
+					set {_hmul} to getMetadata(loop-entity, "hitboxMul")
+					if {_hmul} is set:
+						set {_hw} to {_hw}*{_hmul}
+						set {_hl} to {_hl}*{_hmul}
+
+					set y-coord of {_eloc} to y-coord of {_loc}
+					if y-coord of {_eloc} > y-coord of location {_hl} up loop-entity:
+						set y-coord of {_eloc} to y-coord of location {_hl} up loop-entity
+					if y-coord of {_eloc} < y-coord of loop-entity:
+						set y-coord of {_eloc} to y-coord of loop-entity
+					set {_v} to vector from {_eloc} to {_loc}
+					set vector length of {_v} to ({_hw}/2)+0.1
+					set {_eloc} to {_eloc}~{_v}
+
+					if {_dist} >= distance between {_loc} and {_eloc}:
+						if getMetadata(loop-entity, "shield") is true:
+							set {_shield1} to getMetadata(loop-entity, "shieldNo")
+							if "%{_shield1}%" != "%{_shield2}%":
+								add loop-entity to {_target::*}
+								set {_shield2} to getMetadata(loop-entity, "shieldNo")
+						else:
+							add loop-entity to {_target::*}
+
+	return {_target::*}
+#!! 범위 안 가장 가까운 팀원
+function nearTeamer(attacker: entity, loc: location, range: number) :: entity:
+	set {_dist} to {_range}+0
+
+	loop all entities in radius {_range}+3 around {_loc}:
+		if loop-entity != {_attacker}:
+			if isDamageable(loop-entity) is true:
+				if getMetadata(loop-entity, "shield") is not set:
+					if isEnemy({_attacker}, loop-entity) is false:
+						set {_eloc} to loop-entity's location
+						set {_hw} to hitbox width of loop-entity
+						set {_hl} to hitbox length of loop-entity-0.32
+
+						if loop-entity is sneaking:
+							subtract 0.35 from {_hl}
+						if abs(pitch of {_entity}) > 35:
+							subtract 0.1 from {_hl}
+						if abs(pitch of {_entity}) > 70:
+							subtract 0.1 from {_hl}
+
+						if loop-entity is a player:
+							if skill(loop-entity, "히트박스") is set:
+								add skill(loop-entity, "히트박스")-1 to {_hw}
+								add skill(loop-entity, "히트박스")-1 to {_hl}
+
+						set {_hmul} to getMetadata(loop-entity, "hitboxMul")
+						if {_hmul} is set:
+							set {_hw} to {_hw}*{_hmul}
+							set {_hl} to {_hl}*{_hmul}
+
+						set y-coord of {_eloc} to y-coord of {_loc}
+						if y-coord of {_eloc} > y-coord of location {_hl} up loop-entity:
+							set y-coord of {_eloc} to y-coord of location {_hl} up loop-entity
+						if y-coord of {_eloc} < y-coord of loop-entity:
+							set y-coord of {_eloc} to y-coord of loop-entity
+						set {_v} to vector from {_eloc} to {_loc}
+						set vector length of {_v} to ({_hw}/2)+0.1
+						set {_eloc} to {_eloc}~{_v}
+
+						if {_dist} >= distance between {_loc} and {_eloc}:
+							set {_dist} to distance between {_loc} and {_eloc}
+							set {_target} to loop-entity
+
+	return {_target}
+#!! 범위 안 모든 팀원
+function nearTeamers(attacker: entity, loc: location, range: number) :: entities:
+	loop all entities in radius {_range}+3 around {_loc}:
+		if isDamageable(loop-entity) is true:
+			if getMetadata(loop-entity, "shield") is not set:
+				if isEnemy({_attacker}, loop-entity) is false:
+					set {_dist} to {_range}+0
+
+					set {_eloc} to loop-entity's location
+					set {_hw} to hitbox width of loop-entity
+					set {_hl} to hitbox length of loop-entity-0.32
+
+					if loop-entity is sneaking:
+						subtract 0.35 from {_hl}
+					if abs(pitch of {_entity}) > 35:
+						subtract 0.1 from {_hl}
+					if abs(pitch of {_entity}) > 70:
+						subtract 0.1 from {_hl}
+
+					if loop-entity is a player:
+						if skill(loop-entity, "히트박스") is set:
+							add skill(loop-entity, "히트박스")-1 to {_hw}
+							add skill(loop-entity, "히트박스")-1 to {_hl}
+
+					set {_hmul} to getMetadata(loop-entity, "hitboxMul")
+					if {_hmul} is set:
+						set {_hw} to {_hw}*{_hmul}
+						set {_hl} to {_hl}*{_hmul}
+
+					set y-coord of {_eloc} to y-coord of {_loc}
+					if y-coord of {_eloc} > y-coord of location {_hl} up loop-entity:
+						set y-coord of {_eloc} to y-coord of location {_hl} up loop-entity
+					if y-coord of {_eloc} < y-coord of loop-entity:
+						set y-coord of {_eloc} to y-coord of loop-entity
+					set {_v} to vector from {_eloc} to {_loc}
+					set vector length of {_v} to ({_hw}/2)+0.1
+					set {_eloc} to {_eloc}~{_v}
+
+					if {_dist} >= distance between {_loc} and {_eloc}:
+						add loop-entity to {_target::*}
+	return {_target::*}
+#!! 과거 위치 저장 (페르델: 엔트로피 역전)
+function saveOldLocation(entity: entity):
+	set {_oldloc} to {_entity}'s location
+	set {_oldhp} to getHealth({_entity})
+	wait 2 seconds
+	setMetadata({_entity}, "oldloc", {_oldloc})
+	setMetadata({_entity}, "oldhp", {_oldhp})
+#!! 엔티티 틱
+function entityTick(entity: entity):
+	if getMetadata({_entity}, "ticking") is not set:
+		setMetadata({_entity}, "ticking", true)
+
+		wait 1 tick
+		while {_entity} is alive:
+			add 1 to {_i}
+			if getMetadata({_entity}, "ticking") is not set:
+				exit loop
+
+			if getMobType({_entity}) = "dummy":
+				set name of {_entity} to "&7&lDummy"
+
+			if getMobType({_entity}) = "기관총":
+				set {_owner} to getMetadata({_entity}, "owner")
+				set {_ploc} to getMetadata({_owner}, "2-위치")
+				set {_loc} to location 0.1 horizontally forwards location 0.1 up {_ploc}
+				set {_loc2} to location 2.5 horizontally forwards location 0.1 up {_ploc}
+				set {_loc3} to location 0.3 horizontally forwards location 0.25 down {_ploc}
+				set {_loc4} to location 1.5 horizontally forwards location 0.25 down {_ploc}
+				if (check [isNonSolid({_loc}) is false]) or (check [canPass({_ploc}, {_loc2}) is false]) or isNonSolid({_loc3}) or isNonSolid({_loc4}) is true:
+					if isUsingSkill({_owner}, 1) is true:
+						에토르_2({_owner})
+						resetMetadata({_player}, "2-무기")
+
+			if isLiving({_entity}) is true:
+				if getMetadata({_entity}, "shooter") is true:
+					if isStunned({_entity}) is false:
+						if getTeam({_entity}) is "train":
+							if mod({_i}, 16) = 0:
+								trainBot_Attack({_entity})
+						else:
+							if mod({_i}, 20) = 0:
+								trainBot_Attack({_entity})
+
+				set {_varspeed} to getMetadata({_entity}, "bonusSpeed")
+				subtract getMetadata({_entity}, "freeze") from {_varspeed}
+				if getCooldown("%{_entity}'s id%-slow") = 0 ticks:
+					resetMetadata({_entity}, "freeze")
+
+				set {_speed} to parseNumber("%getMetadata({_entity}, "baseSpeed")%")*(100+{_varspeed})/100
+
+				if (check [isStunned({_entity}) is false] -> [getCooldown("%{_entity}'s id%-trap") = 0 ticks]) is true:
+					setWalkspeed({_entity}, {_speed})
+					if {_entity} has jump boost:
+						remove jump boost from {_entity}
+				else:
+					setWalkspeed({_entity}, 0.001)
+					apply jump boost of tier -5 without particles to {_entity} for 1 days
+
+				if getMobType({_entity}) = "설랑":
+					if mod({_i}, 10) = 0:
+						set {_owner} to getMetadata({_entity}, "owner")
+						loop nearEnemys({_owner}, {_entity}, 20):
+							if loop-entity is a player:
+								if loop-entity's health <= loop-entity's max health/4:
+									set target of {_entity} to loop-entity
+						if target of {_entity} = {_owner}:
+							delete {_entity}'s target
+						if target of {_entity} is dead:
+							delete {_entity}'s target
+						if getCooldown("%target of {_entity}'s id%-respawn") > 0 ticks:
+							delete {_entity}'s target
+
+				if mod({_i}, 5) = 0:
+					saveOldLocation({_entity})
+
+			wait 1 tick
+#!! 상태 표시 (액션바)
+function sendStatus(player: player):
+	set {_bar} to ""
+	set {_mode} to getGame({_player})
+	set {_char} to getChar({_player})
+
+	if {_mode} is set:
+		if {-game::%{_mode}%} = "START":
+			set {_color} to "&a"
+			if {_player}'s health <= {_player}'s max health/2:
+				set {_color} to "&e"
+			if {_player}'s health <= {_player}'s max health/4:
+				set {_color} to "&c"
+			editHologram("%{_player}'s id%-game", "&b&l%{_player}%||%getBar({_player}'s health, {_player}'s max health, {_color})%")
+
+	if getMetadata({_player}, "니스-1-최대지급량") is set:
+		set {_hp} to parseNumber("%getMetadata({_player}, "니스-1-최대지급량")%")
+		set {_hpmax} to parseNumber("%getMetadata({_player}, "니스-1-최대용량")%")
+		set {_bar} to "%{_bar}%&f&l[%{니스::액티브::이름1}%] %getBar({_hp}, {_hpmax}, "&e")% &f[❤ %rounded {_hp}%]  "
+
+	if {_char} = "아케이스":
+		if isUsingSkill({_player}, 2) is true:
+			set {_time} to getCooldown("%{_player}'s id%-3-지속시간") to ticks/20
+			set {_bar} to "%{_bar}%&e&l[%{아케이스::액티브::이름3}%] %getBar({_time}, skill({_player}, "3::지속시간"), "&6")% &f[⌛ %{_time} round 1 decimal digits%]  "
+		if isUsingSkill({_player}, 3) is true:
+			set {_time} to getCooldown("%{_player}'s id%-4-지속시간") to ticks/20
+			set {_bar} to "%{_bar}%&e&l[%{아케이스::액티브::이름4}%] %getBar({_time}, skill({_player}, "4::지속시간"), "&6")% &f[⌛ %{_time} round 1 decimal digits%]  "
+	
+	if {_char} = "예거":
+		set {_hp} to parseNumber("%getMetadata({_player}, "1-체력")%")
+		set {_bar} to "%{_bar}%&f&l[%{예거::액티브::이름1}%] %getBar({_hp}, skill({_player}, "1::체력"), "&a")% &f[❤ %rounded {_hp}%]  "
+		if isUsingSkill({_player}, 0) is true:
+			set {_bar} to "%{_bar}%&e&l[1] &f회수  "
+		if isUsingSkill({_player}, 1) is true:
+			set {_bar} to "%{_bar}%&e&l[2] &f회수  "
+		if isUsingSkill({_player}, 2) is true:
+			set {_bar} to "%{_bar}%&e&l[3] &f투척  "
+	
+	if {_char} = "퀘이커":
+		set {_hp} to parseNumber("%getMetadata({_player}, "1-내구도")%")
+		set {_bar} to "%{_bar}%&f&l[%{퀘이커::액티브::이름1}%] %getBar({_hp}, skill({_player}, "1::내구도"), "&a")% &f[❤ %rounded {_hp}%]  "
+		if isUsingSkill({_player}, 0) is true:
+			set {_bar} to "%{_bar}%&e&l[1] &f취소  "
+
+	if {_char} = "실리아":
+		set {_hp} to parseNumber("%getMetadata({_player}, "3-최대시간")%")
+		set {_bar} to "%{_bar}%&f&l[%{실리아::액티브::이름3}%] %getBar({_hp}, skill({_player}, "3::최대시간"), "&a")% &f[⌛ %{_hp} round 1 decimal digits%]  "
+		if isUsingSkill({_player}, 2) is true:
+			set {_bar} to "%{_bar}%&e&l[3] &f취소  "
+		if isUsingSkill({_player}, 3) is true:
+			set {_time} to getCooldown("%{_player}'s id%-4-지속시간") to ticks/20
+			set {_bar} to "%{_bar}%&e&l[%{실리아::액티브::이름4}%] %getBar({_time}, skill({_player}, "4::지속시간"), "&6")% &f[⌛ %{_time} round 1 decimal digits%]  "
+
+	if {_char} = "니스":
+		if isUsingSkill({_player}, 2) is true:
+			set {_bar} to "%{_bar}%&e&l[3] &f취소  "
+		if isUsingSkill({_player}, 3) is true:
+			set {_time} to getCooldown("%{_player}'s id%-4-지속시간") to ticks/20
+			set {_bar} to "%{_bar}%&e&l[%{니스::액티브::이름4}%] %getBar({_time}, skill({_player}, "4::지속시간"), "&6")% &f[⌛ %{_time} round 1 decimal digits%]  "
+
+	if {_char} = "에토르":
+		if getCooldown("%{_player}'s id%-평L-공격속도") > 0 ticks:
+			set {_time} to getCooldown("%{_player}'s id%-평L-공격속도") to ticks/20
+			set {_bar} to "%{_bar}%&e&l[유탄] %getBar({_time}, skill({_player}, "평L::공격속도"), "&6")% &f[⌛ %{_time} round 1 decimal digits%]  "
+		if isUsingSkill({_player}, 0) is true:
+			set {_time} to getCooldown("%{_player}'s id%-1-지속시간") to ticks/20
+			set {_bar} to "%{_bar}%&e&l[%{에토르::액티브::이름1}%] %getBar({_time}, skill({_player}, "1::지속시간"), "&6")% &f[⌛ %{_time} round 1 decimal digits%]  "
+		if getMetadata({_player}, "2-장착") is true:
+			set {_bar} to "%{_bar}%&e&l[2] &f회수  &e&l[SHIFT] &f장착 해제"
+		if isUsingSkill({_player}, 3) is true:
+			set {_time} to getCooldown("%{_player}'s id%-4-지속시간") to ticks/20
+			set {_bar} to "%{_bar}%&e&l[%{에토르::액티브::이름4}%] %getBar({_time}, skill({_player}, "4::지속시간"), "&6")% &f[⌛ %{_time} round 1 decimal digits%]  "
+
+	if {_char} = "페르델":
+		set {_time} to getCooldown("%{_player}'s id%-3-최대시간") to ticks/20
+		set {_bar} to "%{_bar}%&e&l[%{페르델::액티브::이름3}%] %getBar({_time}, skill({_player}, "3::최대시간"), "&6")% &f[⌛ %{_time} round 1 decimal digits%]  "
+
+	if {_char} = "체드":
+		set {_amt} to getMetadata({_player}, "S2-충전량")
+		set {_bar} to "%{_bar}%&b&l[%{체드::특성::이름2}%] %getBar({_amt}, skill({_player}, "S2::충전량"), "&9")% &f[×%{_amt}%]  "
+		if isUsingSkill({_player}, 0) is true:
+			set {_time} to getCooldown("%{_player}'s id%-1-지속시간") to ticks/20
+			set {_bar} to "%{_bar}%&e&l[%{체드::액티브::이름1}%] %getBar({_time}, skill({_player}, "1::지속시간"), "&6")% &f[⌛ %{_time} round 1 decimal digits%]  "
+
+	if {_char} = "인페르노":
+		if getCooldown("%{_player}'s id%-buff-인페르노-P1") > 0 ticks:
+			set {_time} to getCooldown("%{_player}'s id%-buff-인페르노-P1") to ticks/20
+			set {_bar} to "%{_bar}%&e&l[%{인페르노::패시브::이름1}%] %getBar({_time}, skill({_player}, "P1::증가지속시간"), "&6")% &f[⌛ %{_time} round 1 decimal digits%]  "
+		if isUsingSkill({_player}, 1) is true:
+			set {_time} to getCooldown("%{_player}'s id%-2-지속시간") to ticks/20
+			set {_bar} to "%{_bar}%&e&l[%{인페르노::액티브::이름2}%] %getBar({_time}, skill({_player}, "2::지속시간"), "&6")% &f[⌛ %{_time} round 1 decimal digits%]  "
+		if isUsingSkill({_player}, 3) is true:
+			set {_time} to getCooldown("%{_player}'s id%-4-지속시간") to ticks/20
+			set {_bar} to "%{_bar}%&e&l[%{인페르노::액티브::이름4}%] %getBar({_time}, skill({_player}, "4::지속시간"), "&6")% &f[⌛ %{_time} round 1 decimal digits%]  "
+
+	if getCooldown("%{_player}'s id%-gunreload") = 0 ticks:
+		if getCooldown("%{_player}'s id%-warning") = 0 ticks:
+			send action bar {_bar} to {_player}
+#!! 플레이어 틱
+function playerTick(player: player):
+	while getChar({_player}) is set:
+		set {_mode} to getGame({_player})
+		set {_char} to getChar({_player})
+		add 1 to {_i}
+
+		# 시스템 버프 / 디버프
+
+		if {_player} doesn't have water breathing:
+			apply water breathing of tier 1 without particles to {_player} for 1 days
+		if (check [getCooldown("%{_player}'s id%-punch") = 0 ticks] -> [isMeleeChar({_player}) is false]) is true:
+			apply haste of tier 5 without particles to {_player} for 1 days replacing existing effect
+		else if {_player} has haste:
+			apply haste of tier 5 without particles to {_player} for 0 ticks replacing existing effect
+		if isSprintable({_player}) is true:
+			if getMetadata({_player}, "sprint") is not set:
+				setMetadata({_player}, "sprint", true)
+				allowSprint({_player}, true)
+		else:
+			if getMetadata({_player}, "sprint") is true:
+				resetMetadata({_player}, "sprint")
+				allowSprint({_player}, false)
+		if isJumpable({_player}) is true:
+			if {_player} has jump boost:
+				apply jump boost of tier -5 without particles to {_player} for 0 ticks replacing existing effect
+		else:
+			apply jump boost of tier -5 without particles to {_player} for 1 days
+
+		# 궁극기 자동충전
+
+		if mod({_i}, 10) = 0:
+			if isUsingSkill({_player}, 3) is false:
+				addUlt({_player}, ({@IDLE_ULT_CHARGE}/skill({_player}, "4::충전량"))/2)
+				set level of {_player} to getUlt({_player})*100
+			if getUlt({_player}) = 1:
+				if isSkillCooldownFinished({_player}, 3) is false:
+					if isUsingSkill({_player}, 3) is false:
+						set {_name} to name of slot 3 of {_player}
+						set {_lore::*} to lore of slot 3 of {_player}
+						set slot 3 of {_player} to purple glass pane named {_name} with lore {_lore::*}
+						enchant slot 3 of {_player} with fortune 1
+						playSoundPlayer("entity.player.levelup", {_player}, 0.5, 2)
+
+		# 치명상 시각효과
+
+		if mod({_i}, 5) = 0:
+			if {_player}'s health <= {_player}'s max health/4:
+				send red tint to {_player} with fadeTime 1, intensity 100 and damageMode false
+				if {_player}'s gamemode is not spectator:
+					particleBlock(redstone block, location 1 up {_player}, 0.2, 0.35, 0.2, 0.03, 2)
+			if {_player}'s gamemode is spectator:
+				send red tint to {_player} with fadeTime 1, intensity 100 and damageMode false
+
+		# 전투원 스킬 틱
+
+			if {_char} = "예거":
+				if isSkillCooldownFinished({_player}, 0) is true:
+					if isUsingSkill({_player}, 0) is false:
+						set {_value} to rounded skill({_player}, "1::체력")/skill({_player}, "1::체력회복")
+						addMetadata({_player}, "1-체력", {_value}/4)
+						if parseNumber("%getMetadata({_player}, "1-체력")%") > skill({_player}, "1::체력"):
+							setMetadata({_player}, "1-체력", skill({_player}, "1::체력"))
+
+			if {_char} = "퀘이커":
+				if isSkillCooldownFinished({_player}, 0) is true:
+					if isUsingSkill({_player}, 0) is false:
+						set {_value} to rounded skill({_player}, "1::내구도")/skill({_player}, "1::내구도회복")
+						addMetadata({_player}, "1-내구도", {_value}/4)
+						if parseNumber("%getMetadata({_player}, "1-내구도")%") > skill({_player}, "1::내구도"):
+							setMetadata({_player}, "1-내구도", skill({_player}, "1::내구도"))
+
+			if {_char} = "실리아":
+				if isSkillCooldownFinished({_player}, 2) is true:
+					if isUsingSkill({_player}, 2) is false:
+						addMetadata({_player}, "3-최대시간", 1/4)
+						if parseNumber("%getMetadata({_player}, "3-최대시간")%") > skill({_player}, "3::최대시간"):
+							setMetadata({_player}, "3-최대시간", skill({_player}, "3::최대시간"))
+
+			if {_char} = "니스":
+				if (check [getCooldown("%{_player}'s id%-P1-발동시간") = 0 ticks]) or (check [isUsingSkill({_player}, 3) is true]) is true:
+					heal({_player}, {_player}, skill({_player}, "P1::초당회복량")/4)
+
+			if {_char} = "체드":
+				if parseNumber("%getMetadata({_player}, "S2-충전량")%") < skill({_player}, "S2::충전량"):
+					if getCooldown("%{_player}'s id%-S2-충전량") = 0 ticks:
+						addMetadata({_player}, "S2-충전량", 1)
+						setCooldown("%{_player}'s id%-S2-충전량", parseTimespan(skill({_player}, "S2::쿨타임")*20))
+				else:
+					setCooldown("%{_player}'s id%-S2-충전량", parseTimespan(skill({_player}, "S2::쿨타임")*20))
+		
+		# 플라이
+
+		if isFlyable({_player}) is true:
+			set {_fly} to true
+		else:
+			set {_fly} to false
+		if gamemode of {_player} is spectator:
+			set {_fly} to true
+		set fly state of {_player} to {_fly}
+
+		# 이동속도 계산
+
+		if {_char} = "아케이스":
+			if check [{_player} is sprinting] -> [getCooldown("%{_player}'s id%-gunshot") = 0 ticks] -> [getCooldown("%{_player}'s id%-gunreload") = 0 ticks]:
+				if getMetadata({_player}, "P1-이속") is not set:
+					setMetadata({_player}, "P1-이속", true)
+					addMetadata({_player}, "bonusSpeed", skill({_player}, "P1::달리기속도"))
+			else:
+				if getMetadata({_player}, "P1-이속") = true:
+					resetMetadata({_player}, "P1-이속")
+					addMetadata({_player}, "bonusSpeed", skill({_player}, "P1::달리기속도")*-1)
+
+		if {_char} = "퀘이커":
+			if isUsingSkill({_player}, 0) is true:
+				if getMetadata({_player}, "1-이속") is not set:
+					setMetadata({_player}, "1-이속", true)
+					addMetadata({_player}, "bonusSpeed", -25)
+			else:
+				if getMetadata({_player}, "1-이속") = true:
+					resetMetadata({_player}, "1-이속")
+					addMetadata({_player}, "bonusSpeed", 25)
+
+		if {_char} = "실리아":
+			if isUsingSkill({_player}, 1) is true:
+				if getMetadata({_player}, "2-이속") is not set:
+					setMetadata({_player}, "2-이속", true)
+					addMetadata({_player}, "bonusSpeed", -50)
+			else:
+				if getMetadata({_player}, "2-이속") = true:
+					resetMetadata({_player}, "2-이속")
+					addMetadata({_player}, "bonusSpeed", 50)
+			if (check [isUsingSkill({_player}, 2) is true]) or (check [isUsingSkill({_player}, 3) is true]) is true:
+				if getMetadata({_player}, "3-이속") is not set:
+					setMetadata({_player}, "3-이속", true)
+					addMetadata({_player}, "bonusSpeed", 25)
+			else:
+				if getMetadata({_player}, "3-이속") = true:
+					resetMetadata({_player}, "3-이속")
+					addMetadata({_player}, "bonusSpeed", -25)
+
+		if {_char} = "에토르":
+			if isUsingSkill({_player}, 2) is true:
+				if getMetadata({_player}, "3-이속") is not set:
+					setMetadata({_player}, "3-이속", true)
+					addMetadata({_player}, "bonusSpeed", -50)
+			else:
+				if getMetadata({_player}, "3-이속") = true:
+					resetMetadata({_player}, "3-이속")
+					addMetadata({_player}, "bonusSpeed", 50)
+
+		if {_char} = "체드":
+			if (check [isUsingSkill({_player}, 2) is true]) or (check [isUsingSkill({_player}, 3) is true]) is true:
+				if getMetadata({_player}, "3-이속") is not set:
+					setMetadata({_player}, "3-이속", true)
+					addMetadata({_player}, "bonusSpeed", -50)
+			else:
+				if getMetadata({_player}, "3-이속") = true:
+					resetMetadata({_player}, "3-이속")
+					addMetadata({_player}, "bonusSpeed", 50)
+
+		set {_varspeed} to getMetadata({_player}, "bonusSpeed")
+		subtract getMetadata({_player}, "freeze") from {_varspeed}
+		if getCooldown("%{_player}'s id%-slow") = 0 ticks:
+			resetMetadata({_player}, "freeze")
+
+		set {_speed} to skill({_player}, "이동속도")*(100+{_varspeed})/100
+
+		if {_player}'s vehicle is set:
+			set {_speed} to {Player::BASE_SPEED}*{_speed}
+		else:
+			if {_player} is sprinting:
+				set {_speed} to ({Player::BASE_SPEED}*{_speed})*0.88
+				if {_player}.isOnGround() = false:
+					set {_speed} to {_speed}*({_speed}/{Player::BASE_SPEED})
+			else:
+				set {_speed} to {Player::BASE_SPEED}*{_speed}
+
+		if (check [isStunned({_player}) is false] -> [getCooldown("%{_player}'s id%-stop") = 0 ticks] -> [getCooldown("%{_player}'s id%-trap") = 0 ticks] -> [getCooldown("%{_player}'s id%-stun") = 0 ticks]) is true:
+			setWalkspeed({_player}, {_speed})
+		else:
+			setWalkspeed({_player}, 0.0001)
+		set {_player}'s flyspeed to 0
+
+		# 화면 확대
+
+		if {_player} isn't flying:
+			# else:
+			# 		set float pnum 1 of {_p} to {_player}'s walkspeed*0.5
+			# if "%{_speed}%" != "%{_oldspeed}%":
+			# 	create cooldown "spdchanged" of {_player} for 3 ticks
+			# if cooldown "spdchanged" of {_player} is finished:
+			# if {%{_player}%::fov} is not set:
+			# 	set float pnum 1 of {_p} to 0
+			# 	set {_packet} to true
+			# else:
+			# 	set float pnum 1 of {_p} to {_player}'s walkspeed*0.5
+			# 	set {_packet} to true
+			set {_p} to new play_server_abilities packet
+			set object pinfo 2 of {_p} to {_fly}
+			if {-%{_player}%.zoom} is set:
+				if getMetadata({_player}, "zoom") is not set:
+					setMetadata({_player}, "zoom", true)
+					set float pnum 1 of {_p} to getWalkspeed({_player})*{-%{_player}%.zoom}*-1
+					send packet {_p} to {_player}
+			else:
+				resetMetadata({_player}, "zoom")
+				send packet {_p} to {_player}
+			# if {_stun} is true:
+			# 	delete {_packet}
+
+		# 과거 위치 저장 (페르델: 엔트로피 역전)
+
+		if mod({_i}, 5) = 0:
+			saveOldLocation({_player})
+			sendStatus({_player})
+
+		# 생존시간
+
+		if mod({_i}, 20) = 0:
+			if {-game::%{_mode}%} = "START":
+				add 1 second to {%{_player}%::battletime::%{_char}%}
+				if "%region at {_player}%" doesn't contain "BattleRed" or "BattleBlue":
+					if getCooldown("%{_player}'s id%-death") = 0 ticks:
+						addMetadata({_player}, "live", 1)
+
+		wait 1 tick
+#!! 사망 (리스폰)
+function respawn(attacker: player, victim: player):
+	set {_mode} to getGame({_victim})
+	set {_death} to location of {_victim}
+
+	if {_mode} is not set:
+		set {_respawn} to 1 seconds
+	else:
+		set {_respawn} to 10 seconds
+		set gamemode of {_victim} to spectator
+		set velocity of {_victim} to vector 0, 0, 0
+		createCorpse({_victim}, location of {_death}, {_respawn})
+
+	setCooldown("%{_victim}'s id%-death", {_respawn})
+
+	if {_mode} is set:
+		loop {_respawn} to ticks times:
+			set {_cool} to (getCooldown("%{_victim}'s id%-death") to ticks/20) rounded 1 decimal digits
+			sendTitle({_victim}, "&c&l죽었습니다!", "&f%{_cool}% 초 후 부활합니다.", 20 ticks, 0 ticks, 10 ticks)
+			set {_dloc} to location 0.5 up {_death}
+			set pitch of {_dloc} to 90
+			teleport({_victim}, {_dloc})
+			wait 1 tick
+			if {-game::%{_mode}%} is not set:
+				exit
+			if getGame({_victim}) is not set:
+				exit
+	else:
+		sendTitle({_victim}, "&c&l죽었습니다!", "&e&n%{_attacker}%&f님에게 죽음", 20 ticks, 0 ticks, 10 ticks)
+
+	setCooldown("%{_victim}'s id%-restore", 10 ticks)
+	set {_victim}'s health to {_victim}'s max health
+
+	if {_mode} is not set:
+		if getTeam({_victim}) contains "pvp":
+			teleport({_victim}, {battlepvpwait})
+		else:
+			teleport({_victim}, {spawn})
+	else:
+		set gamemode of {_victim} to survival
+		if getTeam({_victim}) = "red":
+			teleport({_victim}, {battlered::%{_mode}%})
+		if getTeam({_victim}) = "blue":
+			teleport({_victim}, {battleblue::%{_mode}%})
+on death of player:
+	force player to respawn
+#!! 킬
+function kill(attacker: entity, victim: entity):
+	set {_mode} to getGame({_victim})
+
+	if {_victim} is a player:
+		if getCooldown("%{_victim}'s id%-death") = 0 ticks:
+			if {_attacker} is a player:
+				set {_atkers} to ""
+				loop {-%{_victim}%.damage::*}:
+					set {_atker} to parsePlayer(loop-index)
+					set {_char} to getChar({_atker})
+					set {_score} to loop-value*100
+					# if size of {-%{_victim}%.damage::*} = 1:
+					# 	addScore({_attacker}, "&e&n%{_victim}%&f 처치", 100)
+					# else:
+
+					if {_score} >= 30:
+						addScore({_atker}, "&e&n%{_victim}%&f 처치", {_score})
+						if {_mode} is set:
+							add 1 to {%{_atker}%::battlekill::%{_char}%}
+						if getCooldown("%{_atker}'s id%-killstreak") = 0 ticks:
+							resetMetadata({_atker}, "killstreak")
+						addMetadata({_atker}, "killstreak", 1)
+						set {_killstreak} to getMetadata({_atker}, "killstreak")
+						setCooldown("%{_atker}'s id%-killstreak", {@KILLSTREAK_TIME_LIMIT})
+						if {_killstreak} >= 2:
+							addScore({_atker}, "%{_killstreak}%명 연속 처치", {@KILLSTREAK_BASE_SCORE}*{_killstreak})
+
+					else:
+						addScore({_atker}, "&e&n%{_victim}%&f 처치 도움", {_score})
+
+					if {_char} = "실리아" or "페르델" or "데스문":
+						if getCooldown("%{_atker}'s id%-fastkill-%{_victim}'s id%") > 0 ticks:
+							addScore({_atker}, "암살", loop-value*{%{_char}%::점수::암살})
+					if {_char} != "니스" or "퀘이커":
+						if getCooldown("%{_atker}'s id%-hit-%{_victim}'s id%-normal-4") > 0 ticks:
+							addScore({_atker}, "궁극기 보너스", loop-value*{%{_char}%::점수::궁극기 보너스})
+					if {_char} = "에토르":
+						if getCooldown("%{_atker}'s id%-hit-%{_victim}'s id%-normal-2") > 0 ticks:
+							addScore({_atker}, "기관총 보너스", loop-value*{에토르::점수::기관총 보너스})
+					if {_char} = "예거":
+						if getCooldown("%{_atker}'s id%-hit-%{_victim}'s id%-alter-1") > 0 ticks:
+							addScore({_atker}, "설랑 보너스", loop-value*{예거::점수::설랑 보너스})
+					if size of {-%{_victim}%.damage::*} > 1:
+						if {_char} = "퀘이커":
+							if getCooldown("%{_atker}'s id%-sup-%{_victim}'s id%-normal-2") > 0 ticks:
+								addScore({_atker}, "처치 지원", {퀘이커::점수::처치 지원-2})
+							if getCooldown("%{_atker}'s id%-sup-%{_victim}'s id%-normal-4") > 0 ticks:
+								addScore({_atker}, "처치 지원", {퀘이커::점수::처치 지원-4})
+						if {_char} = "인페르노":
+							if getCooldown("%{_atker}'s id%-sup-%{_victim}'s id%-normal-2") > 0 ticks:
+								addScore({_atker}, "처치 지원", {인페르노::점수::처치 지원})
+						if {_char} = "체드":
+							if getCooldown("%{_atker}'s id%-sup-%{_victim}'s id%-normal-3") > 0 ticks:
+								addScore({_atker}, "처치 지원", {체드::점수::처치 지원})
+					if getCooldown("%{_atker}'s id%-buff-니스-평R") > 0 ticks:
+						set {_buffer} to getMetadata({_atker}, "니스")
+						addScore({_buffer}, "처치 지원", {니스::점수::처치 지원})
+
+					sendTitle({_atker}, "", "&c&lKILL", 2 ticks, 0 ticks, 10 ticks)
+					playSoundPlayer("entity.experience_orb.pickup", {_atker}, 1, 1.25)
+					playSoundPlayer("entity.experience_orb.pickup", {_atker}, 0.6, 1.25)
+
+					if getTeam({_atker}) = "red":
+						set {_atkers} to "%{_atkers}% &f　&c&l%{_atker}%"
+					else if getTeam({_atker}) = "blue":
+						set {_atkers} to "%{_atkers}% &f　&9&l%{_atker}%"
+
+					if {_char} = "실리아":
+						setSkillCooldown({_atker}, 0, 0)
+						addCooldown("%{_atker}'s id%-4-지속시간", 2 seconds)
+
+					if {_mode} is set:
+						if {_score} >= 30:
+							addMetadata({_atker}, "kill", 1)
+						else:
+							addMetadata({_atker}, "assist", 1)
+
+			if {_atker} is set:
+				if getTeam({_victim}) = "red":
+					set {_title} to "&4&l[KILL]%{_atkers}% &4&l-> &f　&c&l%{_victim}%"
+				else if getTeam({_victim}) = "blue":
+					set {_title} to "&4&l[KILL]%{_atkers}% &4&l-> &f　&9&l%{_victim}%"
+				if {_mode} is set:
+					loop {-game::%{_mode}%::*}:
+						sendBossbar(loop-value, "kill-%random integer between 0 to 1000%", {_title}, 0, "white", 5 seconds)
+
+				if getTeam({_atker}) = "red":
+					add 1 to {-redscore::%{_mode}%}
+				else if getTeam({_atker}) = "blue":
+					add 1 to {-bluescore::%{_mode}%}
+
+			delete {-%{_victim}%.damage::*}
+			respawn({_attacker}, {_victim})
+
+			if {_mode} is set:
+				addMetadata({_victim}, "death", 1)
+				add 1 to {%{_victim}%::battledeath::%getChar({_victim})%}
+		else:
+			exit
+
+	set {_mobtype} to getMobType({_victim})
+	set {_owner} to getMetadata({_victim}, "owner")
+
+	if {_mobtype} = "설랑":
+		setSkillCooldown({_owner}, 0, rounded skill({_owner}, "1::사망쿨타임"))
+		setMetadata({_owner}, "1-체력", 0)
+		playSound("entity.wolf.death", {_victim}, 1, 1)
+		addScore({_attacker}, "&e&n%{_owner}%&f의 설랑 처치", {예거::점수::설랑 처치})
+
+	if {_mobtype} = "곰덫":
+		setSkillCooldown({_owner}, 1, rounded skill({_owner}, "2::사망쿨타임"))
+		playSound("entity.zombie.attack_iron_door", {_victim}, 1, 0.8)
+		playSound("random.metalhit", {_victim}, 1, 0.8)
+		playSound("entity.item.break", {_victim}, 1, 0.8)
+		particleBlock(iron block, location 0.2 up {_victim}, 0.1, 0.1, 0.1, 0.15, 80)
+		addScore({_attacker}, "&e&n%{_owner}%&f의 곰덫 파괴", {예거::점수::곰덫 파괴})
+
+	if {_mobtype} = "눈폭풍발생기":
+		playSound("entity.generic.explode", {_victim}, 1, 1.2)
+		playSound("entity.zombie.attack_iron_door", {_victim}, 1, 0.8)
+		playSound("random.metalhit", {_victim}, 1, 0.8)
+		playSound("entity.item.break", {_victim}, 1, 0.8)
+		particle("explosionlarge", {_victim}, 0, 0, 0, 0, 1)
+		particleBlock(iron block, {_victim}, 0.2, 0.2, 0.2, 0.25, 200)
+		addScore({_attacker}, "&e&n%{_owner}%&f의 눈폭풍 발생기 파괴", {예거::점수::눈폭풍 발생기 파괴})
+
+	if {_mobtype} contains "불굴의방패":
+		setSkillCooldown({_owner}, 0, rounded skill({_owner}, "1::쿨타임"))
+		setMetadata({_owner}, "1-내구도", 0)
+		playSound("entity.irongolem.hurt", {_victim}, 2, 0)
+		playSound("entity.zombie.attack_iron_door", {_victim}, 2, 0.7)
+		playSound("random.metalhit", {_victim}, 2, 0.7)
+		playSound("entity.item.break", {_victim}, 2, 0)
+		set {_victim} to getMetadata({_owner}, "1-개체2")
+		particle("crit", location 0.5 up location 1.6 left {_victim}, 0.3, 0.5, 0.3, 0.4, 50)
+		particleBlock(iron block, location 0.5 up location 1.6 left {_victim}, 0.3, 0.5, 0.3, 0.2, 60)
+		particle("crit", location 0.5 up location 0 left {_victim}, 0.3, 0.5, 0.3, 0.4, 50)
+		particleBlock(iron block, location 0.5 up location 0 left {_victim}, 0.3, 0.5, 0.3, 0.2, 60)
+		particle("crit", location 0.5 up location -1.6 left {_victim}, 0.3, 0.5, 0.3, 0.4, 50)
+		particleBlock(iron block, location 0.5 up location -1.6 left {_victim}, 0.3, 0.5, 0.3, 0.2, 60)
+		addScore({_attacker}, "&e&n%{_owner}%&f의 불굴의 방패 파괴", {퀘이커::점수::불굴의 방패 파괴})
+
+	if {_attacker} != {_victim}:
+		if {_victim} is not a player:
+			sendTitle({_attacker}, "", "&c✔", 2 ticks, 0 ticks, 10 ticks)
+			playSoundPlayer("entity.experience_orb.pickup", {_attacker}, 1, 1.25)
+			playSoundPlayer("entity.experience_orb.pickup", {_attacker}, 0.6, 1.25)
+#!! 데미지
+function damage(attacker: entity, victim: entity, damage: number, hitloc: location, type: text="", crit: boolean=false, ult: boolean=true):
+	if {_victim} is alive:
+		set {_mode} to getGame({_attacker})
+
+		if {_victim} is a player:
+			if gamemode of {_victim} is creative or spectator:
+				exit
+			if getCooldown("%{_victim}'s id%-death") > 0 ticks:
+				exit
+		if "%region at {_victim}%" contains "BattlePVP":
+			exit
+
+		# 치명타 배율 계산
+
+		set {_rdamage} to {_damage}
+		if {_victim} is not a zombie or player:
+			delete {_crit}
+		if getChar({_victim}) = "에토르":
+			delete {_crit}
+		if {_crit} is true:
+			if getChar({_attacker}) = "실리아" or "체드":
+				set {_damage} to {_damage}*skill({_attacker}, "S1::치명타계수")
+			else:
+				set {_damage} to {_damage}*1.5
+		if getChar({_attacker}) = "인페르노":
+			if getMetadata({_victim}, "shield") is true:
+				set {_damage} to {_damage}*skill({_attacker}, "S1::추가피해계수")
+
+		# 데미지 계산
+
+		set {_atkbonus} to 0
+		set {_defbonus} to 0
+
+		if {_type} doesn't contain "alter":
+			if getCooldown("%{_attacker}'s id%-buff-니스-평R") > 0 ticks:
+				add skill({_attacker}, "평::치유공격력증가") to {_atkbonus}
+			if getCooldown("%{_victim}'s id%-buff-인페르노-P1") > 0 ticks:
+				add skill({_victim}, "P1::증가량") to {_defbonus}
+
+		set {_damage} to {_damage}*(100+{_atkbonus}-{_defbonus})/100
+
+		if {_mode} is set:
+			addMetadata({_attacker}, "damage", {_damage})
+
+		# 타격 알림
+
+		if {_attacker} != {_victim}:
+			if {_crit} is true:
+				sendTitle({_attacker}, "", "&c&l×", 2 ticks, 0 ticks, 10 ticks)
+				if getCooldown("%{_attacker}'s id%-atksound") = 0 ticks:
+					setCooldown("%{_attacker}'s id%-atksound", 1 ticks)
+					playSoundPlayer("entity.experience_orb.pickup", {_attacker}, 0.6, 1.9)
+					playSoundPlayer("entity.experience_orb.pickup", {_attacker}, 0.35, 0)
+			else:
+				sendTitle({_attacker}, "", "&f×", 2 ticks, 0 ticks, 10 ticks)
+				if getCooldown("%{_attacker}'s id%-atksound") = 0 ticks:
+					setCooldown("%{_attacker}'s id%-atksound", 1 ticks)
+					playSoundPlayer("random.stab", {_attacker}, 0.4, 2)
+					playSoundPlayer("entity.generic.small_fall", {_attacker}, 0.4, 1.5)
+
+			if getMobType({_victim}) = "dummy":
+				if {_attacker} is a player:
+					if {_damage} > 0:
+						set {_dtag} to "&f"
+						if {_crit} is true:
+							set {_dtag} to "&c&l"
+						if {_type} contains "burn":
+							set {_dtag} to "&6"
+						display hologram "%{_dtag}%%rounded {_damage}%" at location random number between -0.6 to 0.6 south location random number between -0.6 to 0.6 east location random number between 0.7 to 1 up {_victim}'s head to {_attacker} for 0.8 seconds
+
+		# 데미지 처리
+
+		if getMetadata({_victim}, "shield") is not set:
+			if getCooldown("%{_victim}'s id%-damage") = 0 ticks:
+				setCooldown("%{_victim}'s id%-damage", 6 ticks)
+				sendDamage({_victim})
+
+			if {_victim} is a player:
+				set {_shield} to absorption hearts of {_victim}/2
+			else:
+				set {_shield} to 0
+
+			if {_shield} > 0:
+				set {_sdmg} to {_damage}
+				loop getShields({_victim}):
+					if {_sdmg} > 0:
+						set {_shield} to getShield({_victim}, loop-value)
+						addShield({_victim}, loop-value, {_sdmg}*-1)
+						subtract {_shield} from {_sdmg}
+				if {_sdmg} > 0:
+					set {_hdmg} to {_sdmg}
+			else:
+				set {_hdmg} to {_damage}
+
+			if (check ["%region at {_victim}%" contains "BattleTrain"] -> [getHealth({_victim})-{_hdmg} <= 0]) is true:
+				setHealth({_victim}, 1)
+			else:
+				if getHealth({_victim})-{_hdmg} <= 0:
+					set {_kill} to true
+				else:
+					setHealth({_victim}, getHealth({_victim})-{_hdmg})
+
+			if {_attacker} != {_victim}:
+				if (check [{_victim} is a player]) or (check [getMobType({_victim}) = "dummy"]) is true:
+					if {_ult} is true:
+						if getChar({_attacker}) is set:
+							if isUsingSkill({_attacker}, 3) is false:
+								if getCooldown("%{_attacker}'s id%-ult") = 0 ticks:
+									addUlt({_attacker}, {_damage}/skill({_attacker}, "4::충전량"))
+
+					if getCooldown("%{_attacker}'s id%-damage-%{_victim}'s id%") = 0 ticks:
+						delete {-%{_victim}%.damage::%{_attacker}%}
+						setCooldown("%{_attacker}'s id%-fastkill-%{_victim}'s id%", {@FASTKILL_TIME_LIMIT})
+					setCooldown("%{_attacker}'s id%-damage-%{_victim}'s id%", {@DAMAGE_SUM_TIME_LIMIT})
+
+					if {_kill} is true:
+						add getHealth({_victim})/getMaxHealth({_victim}) to {-%{_victim}%.damage::%{_attacker}%}
+					else:
+						add {_hdmg}/getMaxHealth({_victim}) to {-%{_victim}%.damage::%{_attacker}%}
+					if {-%{_victim}%.damage::%{_attacker}%} > 1:
+						set {-%{_victim}%.damage::%{_attacker}%} to 1
+
+		# 전투원 점수
+
+		if {_damage} > 0:
+			if {_attacker} is a player:
+				if {_victim} is a player:
+					setCooldown("%{_attacker}'s id%-hit-%{_victim}'s id%-%{_type}%", 5 seconds)
+
+					if getChar({_attacker}) = "아케이스":
+						if {_type} is "normal-2":
+							addScore({_attacker}, "미사일", {아케이스::점수::미사일})
+
+					if getChar({_attacker}) = "실리아":
+						if {_crit} is true:
+							addScore({_attacker}, "백어택", {실리아::점수::백어택})
+						if {_type} is "normal-1":
+							addScore({_attacker}, "연풍 가르기", {실리아::점수::연풍 가르기})
+						if {_type} is "normal-3":
+							addScore({_attacker}, "일격", {실리아::점수::일격})
+
+					if getChar({_attacker}) = "에토르":
+						if {_type} is "normal-평L":
+							addScore({_attacker}, "유탄", {에토르::점수::유탄})
+
+					if getChar({_attacker}) = "예거":
+						if {_type} is "normal-3":
+							addScore({_attacker}, "수류탄", {에토르::점수::수류탄})
+
+					if getChar({_attacker}) = "체드":
+						if {_type} is "normal-평-불화살" or "normal-1-불화살":
+							addScore({_attacker}, "불화살", ({_rdamage}/skill({_attacker}, "평::피해량"))*{체드::점수::불화살})
+						if {_type} is "normal-평" or "normal-평-불화살":
+							if {_crit} is true:
+								addScore({_attacker}, "헤드샷", ({_rdamage}/skill({_attacker}, "평::피해량"))*{체드::점수::헤드샷})
+						if {_type} is "normal-1" or "normal-1-불화살":
+							addScore({_attacker}, "연속 화살", {체드::점수::연속 화살})
+
+					if getChar({_attacker}) = "페르델":
+						if {_type} is "normal-3":
+							addScore({_attacker}, "타임 패러독스", {페르델::점수::타임 패러독스})
+
+					if getChar({_attacker}) = "인페르노":
+						if {_type} is "normal-1":
+							addScore({_attacker}, "점프 부스터", {인페르노::점수::점프 부스터})
+				else:
+					if getMobType({_victim}) = "불굴의방패":
+						addScore(getMetadata({_victim}, "owner"), "피해 막음", {_damage}*{퀘이커::점수::피해 막음})
+
+		# 전투원 능력
+
+		if getChar({_attacker}) = "예거":
+			set {_mob} to getMetadata({_attacker}, "1-개체")
+			if {_mob} is alive:
+				if getMetadata({_victim}, "shield") is not set:
+					set target of {_mob} to {_victim}
+					{_mob}.setSitting(false)
+
+		if getChar({_victim}) = "예거":
+			set {_mob} to getMetadata({_victim}, "1-개체")
+			if {_mob} is alive:
+				set target of {_mob} to {_attacker}
+				{_mob}.setSitting(false)
+
+		if getChar({_victim}) = "니스":
+			setCooldown("%{_victim}'s id%-P1-발동시간", parseTimespan(skill({_victim}, "P1::발동시간")*20))
+
+		# 피격 이펙트
+
+		if isLiving({_victim}) is true:
+			if (check [{_victim} is a player]) or (check [getMobType({_victim}) = "dummy"]) is true:
+				if getCooldown("%{_victim}'s id%-hitsound") = 0 ticks:
+					setCooldown("%{_victim}'s id%-hitsound", 1 ticks)
+
+					if {_type} contains "burn":
+						playSound("entity.player.hurt_on_fire", {_victim}, 0.35+{_damage}*0.001, random number between 0.95 to 1.05)
+					else:
+						playSound("entity.player.hurt", {_victim}, 0.35+{_damage}*0.001, random number between 0.95 to 1.05)
+					if getChar({_victim}) = "퀘이커":
+						playSound("entity.zombie.attack_iron_door", {_victim}, 0.15+{_damage}*0.001, random number between 1.6 to 1.8)
+
+			if {_hitloc} = {_victim}'s location:
+				particleBlock(redstone block, location (hitbox length of {_victim}/2) up {_victim}, 0.15, 0.35, 0.15, 0.1, rounded {_damage}*0.1)
+			else:
+				particleBlock(redstone block, {_hitloc}, 0, 0, 0, 0.1, rounded {_damage}*0.06)
+		else if getMetadata({_victim}, "shield") is true:
+			if {_hitloc} != {_victim}'s location:
+				particleBlock(iron block, {_hitloc}, 0, 0, 0, 0.1, rounded {_damage}*0.04)
+
+		# 소환물 피격
+
+		if getMobType({_victim}) = "설랑":
+			setMetadata(getMetadata({_victim}, "owner"), "1-체력", getHealth({_victim}))
+			if target of {_victim} is not set:
+				set target of {_victim} to {_attacker}
+				{_victim}.setSitting(false)
+
+		if getMetadata({_victim}, "shield") = true:
+			addMetadata(getMetadata({_victim}, "owner"), "1-내구도", 0-{_damage})
+			if getMobType({_victim}) = "불굴의방패":
+				playSound("block.anvil.land", {_victim}, 0.25+{_damage}*0.001, random number between 1.2 to 1.3)
+				playSound("random.metalhit", {_victim}, 0.3+{_damage}*0.001, random number between 0.8 to 0.95)
+			if parseNumber("%getMetadata(getMetadata({_victim}, "owner"), "1-내구도")%") <= 0:
+				kill({_attacker}, {_victim})
+
+		# 킬 처리
+
+		if {_kill} is true:
+			if "%region at {_victim}%" doesn't contain "BattleTrain":
+				if {_victim} is a player:
+					heal {_victim}
+					resetShields({_victim})
+				else:
+					{_victim}.remove()
+				kill({_attacker}, {_victim})
+		
+		# 체력 표시
+
+		wait 1 tick
+		# if {_attacker} is a player:
+		# 	if {_victim} is a player:
+		# 		if getCooldown("%{_attacker}'s id%-gunreload") = 0 ticks:
+		# 			if getCooldown("%{_victim}'s id%-death") = 0 ticks:
+		# 				send action bar "&4&l[%getChar({_victim})%] %getBar({_victim}'s health, {_victim}'s max health, "&c")% &c&l[%{_victim}'s health*100%]" to {_attacker}
+		# 				setCooldown("%{_attacker}'s id%-warning", 0.8 seconds)
+
+on damage:
+	if damage cause is entity explosion or suffocation or fall or burning or poison or drown or void:
+		cancel event
+	if getChar(attacker) is set:
+		if damage cause is attack:
+			cancel event
+	if getMetadata(attacker, "owner") is set:
+		cancel event
+	if name of victim is "&7&lPlayer":
+		cancel event
+	if getMobType(attacker) = "설랑":
+		damage(getMetadata(attacker, "owner"), victim, skill(getMetadata(attacker, "owner"), "1::피해량"), victim, "alter-1")
+	set damage delay of victim to 1 tick
+# 피격시 흔들림 방지
+packet event play_server_update_health:
+	if "%player's hunger*2%" = "%int pnum 0 of event-packet%":
+		if getCooldown("%player's id%-restore") = 0 ticks:
+			cancel event
+# 총기 사격
+on gun shoot:
+	setCooldown("%player's id%-gunreload", 0 ticks)
+	wait 1 tick
+	setCooldown("%player's id%-gunshot", 4 ticks)
+# 총기 재장전
+on gun reload:
+	remove speed from {_player}
+	set {_reload} to parseTimespan(event-number)
+	setCooldown("%player's id%-gunreload", {_reload})
+# 아이템 버리기 방지
+on drop:
+	if getTeam(player) is set:
+		cancel event
+# 점프대
+on walking on sponge:
+	push(player, vector 0, 1.4, 0, true)
+	playSound("entity.generic.small_fall", player, 1.5, 1.5)
+	playSound("entity.item.pickup", player, 1.5, 0.8)
+	playSound("entity.item.pickup", player, 1.5, 1.4)
+# 힐팩
+on walking on netherrack or redstone block or lapis lazuli block:
+	if getChar(player) is set:
+		if player's health < player's max health:
+			loop blocks in radius 2 around player:
+				if loop-block is netherrack or redstone block or lapis lazuli block:
+					set {_loc} to location of loop-block
+
+					if {-heallock::%{_loc}%} is set:
+						if isEnemy({-heallock::%{_loc}%}, player) is true:
+							exit
+
+					if getCooldown("%{_loc}%-healpack") = 0 ticks:
+						if {-heallock::%{_loc}%} is set:
+							heal({-heallock::%{_loc}%}, player, 300, 60)
+							set {_cool} to 3 seconds
+						else:
+							heal(player, player, 300, 0, false)
+							set {_cool} to 15 seconds
+						setCooldown("%{_loc}%-healpack", {_cool})
+
+						loop {_cool} to ticks/20 times:
+							set {_remain} to ceil(getCooldown("%{_loc}%-healpack") to ticks/20)
+							loop all players in radius 12 around {_loc}'s location:
+								display hologram "&f&l[ &6⌛ %{_remain}% &f&l]" at location 1.2 up {_loc} to loop-player for 1 seconds
+							wait 1 second
+# 추락사
+on walking on bedrock:
+	if getChar(player) is set:
+		kill(player, player)
+# 훈련봇 틱
+every 1.2 seconds:
+	loop all entities in radius 5 around location at 241, 220, 253 of "DMGR":
+		if name of loop-entity is "&7&lPlayer":
+			setTeam(loop-entity, "train")
+			setMetadata(loop-entity, "shooter", true)
+			entityTick(loop-entity)
+
+			set {_board} to loop-entity.getScoreboard()
+			if {_board} is not set:
+				set {_board} to Bukkit.getScoreboardManager().getNewScoreboard()
+			set {_team} to {_board}.getTeam("Default")
+			if {_team} is not set:
+				set {_team} to {_board}.registerNewTeam("Default")
+			{_team}.setOption(Option.COLLISION_RULE, OptionStatus.NEVER)
+			{_team}.addEntry(loop-entity.getName())
+# 인벤토리 클릭 방지
+on inventory click:
+	if getChar(player) is set:
+		cancel event
+# 훈련장 디버프 실험
+on region enter:
+	if "%event-region%" contains "Train_Poison":
+		particleSpellRGB({debufftest::1}, 0.3, 0.3, 0.3, 109, 150, 84, 60)
+		playSound("entity.generic.splash", player, 0.8, 1.6)
+		playSound("entity.generic.splash", player, 0.8, 1.8)
+
+	if "%event-region%" contains "Train_Flame":
+		burn(player, player, 50, 3, "train")
+		particle("flame", {debufftest::2}, 0.3, 0.3, 0.3, 0.05, 60)
+		playSound("block.fire.ambient", player, 0.8, 1)
+		playSound("block.fire.ambient", player, 0.8, 1.2)
+
+	if "%event-region%" contains "Train_Stun":
+		if getCooldown("%player's id%-stun") = 0 ticks:
+			particle("explosionlarge", {debufftest::3}, 0, 0, 0, 0, 1)
+			playSound("entity.generic.explode", player, 0.8, 0.9)
+			stun(player, player, 1)
+
+	if "%event-region%" contains "Train_Knockback":
+		particle("explosion", {debufftest::4}, 0.3, 0.3, 0.3, 0.2, 30)
+		playSound("new.item.trident.riptide_1", player, 0.8, 1.4)
+		knockback(player, vector from player to location 1.5 horizontally backwards location 0.5 up player, true)
+
+	if "%event-region%" contains "Train_Leash":
+		if getCooldown("%player's id%-leash") = 0 ticks:
+			particle("fallingdust", {debufftest::5}, 0.3, 0.3, 0.3, 0.05, 60)
+			playSound("new.block.chain.place", player, 0.8, 0.9)
+			leash(player, player, 2)
+# 화면 확대 방지
+packet event play_server_abilities:
+	if getChar(player) is set:
+		if float pnum 1 of event-packet >= 0:
+			set float pnum 1 of event-packet to 0
+			if {-%player%.zoom} is set:
+				cancel event
+		else:
+			set float pnum 1 of event-packet to float pnum 1 of event-packet
+# 발소리
+on player move:
+	set {_player} to player
+	set {_loc} to location of {_player}
+	set {_char} to getChar({_player})
+
+	if {_char} is set:
+		set {_fall} to fall distance of {_player}
+		wait 1 tick
+		addMetadata({_player}, "footstep", distance between {_loc} and {_player})
+		if player is on ground:
+			if getMetadata({_player}, "footstep") > 1.6:
+				setMetadata({_player}, "footstep", 0)
+				if {_fall} > 0:
+					set {_vol} to 1.2+{_fall}*0.05
+					if {_fall} > 6:
+						playSound("block.stone.step", {_player}, 0.5*{_vol}, 0.8)
+						playSound("block.stone.step", {_player}, 0.5*{_vol}, 0.9)
+						playSound("entity.player.big_fall", {_player}, 0.5*{_vol}, 0.9)
+					else if {_fall} > 3:
+						playSound("block.stone.step", {_player}, 0.4*{_vol}, 0.9)
+						playSound("entity.player.small_fall", {_player}, 0.4*{_vol}, 0.9)
+					else:
+						playSound("block.stone.step", {_player}, 0.3*{_vol}, 0.9)
+				else:
+					if {_player} is sneaking:
+						set {_vol} to 0.4
+					else:
+						if {_player} is sprinting:
+							set {_vol} to 1
+						else:
+							set {_vol} to 0.8
+				if {_char} = "퀘이커":
+					if isUsingSkill({_player}, 0) is true:
+						set {_vol} to 1.4
+					playSound("entity.cow.step", {_player}, 0.3*{_vol}, 0.9)
+					playSound("new.entity.ravager.step", {_player}, 0.2*{_vol}, 0.8)
+				if {_char} = "인페르노":
+					playSound("entity.llama.step", {_player}, 0.4*{_vol}, 0.8)
+					playSound("entity.sheep.step", {_player}, 0.2*{_vol}, 0.9)
+				if {_char} = "에토르":
+					playSound("new.entity.panda.step", {_player}, 0.3*{_vol}, 0.7)
+					playSound("new.block.nylium.step", {_player}, 0.3*{_vol}, 1)
+
+packet event play_server_named_sound_effect:
+	set {_loc} to location of player
+	set {_char} to getChar(player)
+	set x-coord of {_loc} to int pnum 0 of event-packet/8
+	set y-coord of {_loc} to int pnum 1 of event-packet/8
+	set z-coord of {_loc} to int pnum 2 of event-packet/8
+	set arbitrary penum 0 of event-packet to "MASTER"
+
+	loop all players in radius 0.5 around {_loc}:
+		if getChar(loop-player) = "실리아":
+			if isUsingSkill(loop-player, 2) is true:
+				cancel event
+				exit
+
+	if getCooldown("%player's id%-nohear") > 0 ticks:
+		cancel event

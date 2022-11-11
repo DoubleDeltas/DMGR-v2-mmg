@@ -1,0 +1,419 @@
+
+# 메뉴
+on rightclick holding clock:
+	if targeted block is not chest or ender chest:
+		if name of player's tool contains "메뉴":
+			make player execute command "/메뉴"
+command /메뉴:
+	aliases: /menu, /apsb
+	trigger:
+		open chest with 6 row named "&0메뉴" to player
+
+		loop 54 times:
+			set slot loop-number+-1 of current inventory of player to {gui빈칸}
+		# set slot 13 of current inventory of player to player's skull named "%getLevelPrefix({%player%::lv})% &f%player's name%"
+		set slot 4 of current inventory of player to player's skull named "&f&l[ null ] &f%player's name%"
+		set slot 19 of current inventory of player to iron sword named "&e&l게임 시작" with lore "&f&f전장에서 다른 플레이어들과 팀을 맺어 전투하고 보상을 획득합니다." with no nbt
+		set slot 21 of current inventory of player to leather boots named "&e&l이동" with lore "&f&f원하는 장소로 이동합니다." with no nbt
+		set slot 23 of current inventory of player to nametag named "&e&l개인 전적 보기" with lore "&f개인 전적을 확인합니다."
+		set slot 25 of current inventory of player to book named "&e&l업적" with lore "&f업적 목록을 확인합니다."
+		set slot 37 of current inventory of player to redstone comparator named "&e&l설정" with lore "&f설정 관련 메뉴를 확인합니다."
+		set slot 39 of current inventory of player to firework charge named "&e&l코어 확인" with lore "&f전투원에 할당된 코어를 확인합니다." with no nbt
+		set slot 41 of current inventory of player to command block named "&e&l명령어 목록" with lore "&f서버 명령어 목록을 확인합니다." with no nbt
+		set slot 43 of current inventory of player to barrier named "&e&l차단 목록" with lore "&f차단한 플레이어 목록을 확인합니다."
+		set slot 53 of current inventory of player to {gui나가기} named "&c&l나가기"
+command /시작:
+	aliases: /start, /tlwkr
+	trigger:
+		open chest with 1 row named "&9&n게임 시작" to player
+
+		set slot 0 of current inventory of player to light green glass pane named "&a&l팀 데스매치" with lore "&f상대팀보다 더 많은 킬을 얻으면 승리하는 모드입니다.", "&e게임 인원 : &l[ %size of {-game::0::*}% / 10 ]"
+		set slot 1 of current inventory of player to light green glass pane named "&a&l점령전" with lore "&f공격과 수비 팀으로 나뉘며, 공격 팀은 2개의 거점을 모두 점령하면 승리하고", "&f수비 팀은 제한시간 이내에 거점을 지키면 승리하는 모드입니다.", "&e게임 인원 : &l[ %size of {-game::1::*}% / 12 ]"
+		set slot 2 of current inventory of player to black glass pane named "&a&l쟁탈전" with lore "&f맵 중앙에 점령지가 있으며, 점령할 경우 포인트를 획득하며", "&f포인트가 더 높은 팀이 승리하는 모드입니다.", "&c&l개발 중"
+		set slot 8 of current inventory of player to {gui나가기} named "&e&l퇴장" with lore "&f게임 대기열에서 나갑니다."
+command /이동:
+	aliases: /move, /dlehd
+	trigger:
+		open chest with 1 row named "&9&n이동" to player
+
+		set slot 0 of current inventory of player to iron sword named "&b&l자유 전투" with lore "&f전장에서 다른 플레이어들과 자유롭게 전투합니다." with no nbt
+		set slot 1 of current inventory of player to armor stand named "&b&l훈련장" with lore "&f훈련장에서 다양한 전투원을 체험해보고 기술을 연마합니다."
+		set slot 8 of current inventory of player to {gui나가기} named "&b&l로비" with lore "&f로비로 이동합니다."
+command /설정:
+	aliases: /option, /tjfwjd
+	trigger:
+		open chest with 2 row named "&0설정" to player
+
+		loop 9 times:
+			set slot 9+loop-number+-1 of current inventory of player to {gui빈칸}
+		if {%player%::kor} is not set:
+			set slot 0 of current inventory of player to {한글자동변환} named "&e&l한글 자동 변환" with lore "&f채팅 자동 한글 변환을 활성화합니다.", "&c&l꺼짐"
+			set slot 0+9 of current inventory of player to {gui비활성화}
+		else:
+			set slot 0 of current inventory of player to {한글자동변환} named "&e&l한글 자동 변환" with lore "&f채팅 자동 한글 변환을 활성화합니다.", "&a&l켜짐"
+			set slot 0+9 of current inventory of player to {gui활성화}
+		if {%player%::fov} is not set:
+			set slot 1 of current inventory of player to {가변시야범위} named "&e&l가변 시야 범위" with lore "&f달릴 때 시야각이 넓어집니다.", "&c&l꺼짐"
+			set slot 1+9 of current inventory of player to {gui비활성화}
+		else:
+			set slot 1 of current inventory of player to {가변시야범위} named "&e&l가변 시야 범위" with lore "&f달릴 때 시야각이 넓어집니다.", "&a&l켜짐"
+			set slot 1+9 of current inventory of player to {gui활성화}
+		if {%player%::nightvision} is not set:
+			set slot 2 of current inventory of player to {야간투시} named "&e&l야간 투시" with lore "&f야간 투시를 활성화합니다.", "&c&l꺼짐" with no nbt
+			set slot 2+9 of current inventory of player to {gui비활성화}
+		else:
+			set slot 2 of current inventory of player to {야간투시} named "&e&l야간 투시" with lore "&f야간 투시를 활성화합니다.", "&a&l켜짐" with no nbt
+			set slot 2+9 of current inventory of player to {gui활성화}
+		set slot 3 of current inventory of player to {조준선설정} named "&e&l조준선 설정" with lore "&f조준선을 변경합니다."
+		set slot 4 of current inventory of player to {채팅효과음} named "&e&l채팅 효과음" with lore "&f채팅 효과음을 변경하거나 끕니다."
+		set slot 16 of current inventory of player to {gui버튼left} named "&e&l이전"
+		set slot 17 of current inventory of player to {gui나가기} named "&c&l나가기"
+# 메뉴 창 클릭
+on inventory click:
+	if inventory name of current inventory of player is "&0메뉴":
+		cancel event
+		if clicked inventory = current inventory of player:
+			if click type is not double click:
+				if click item is not 0 air or orange glass pane or {gui빈칸}:
+					playSoundPlayer("ui.button.click", player, 1, 1)
+				if name of click item is "&e&l게임 시작":
+					make player execute command "/시작"
+					exit
+				else if name of click item is "&e&l이동":
+					make player execute command "/이동"
+					exit
+				else if name of click item is "&e&l개인 전적 보기":
+					make player execute command "/전적"
+					close player's inventory
+					exit
+				else if name of click item is "&e&l명령어 목록":
+					make player execute command "/명령어"
+					close player's inventory
+					exit
+				else if name of click item is "&e&l코어 확인":
+					make player execute command "/코어"
+				else if name of click item is "&e&l차단 목록":
+					make player execute command "/차단 목록"
+					exit
+				else if name of click item is "&e&l설정":
+					make player execute command "/설정"
+					exit
+				else if name of click item is "&e&l업적":
+					make player execute command "/업적"
+				else if name of click item is "&c&l나가기":
+					close player's inventory
+					exit
+	if inventory name of current inventory of player is "&9&n게임 시작":
+		cancel event
+		if name of click item is "&a&l팀 데스매치":
+			if size of {-game::0::*} < 10:
+				joinGame(player, 0)
+				close player's inventory
+			else:
+				send "%{PREFIX}% &c인원이 초과되었습니다. 나중에 다시 시도하십시오." to player
+		if name of click item is "&e&l퇴장":
+			make player execute command "/퇴장"
+			close player's inventory
+			exit
+	if inventory name of current inventory of player is "&9&n이동":
+		cancel event
+		if player hasn't enough space for 35 iron swords:
+			send "%{PREFIX}% &c입장하기 전에, 인벤토리를 비워주십시오. (엔더상자 이용)"
+			close player's inventory
+			exit
+		if name of click item is "&b&l훈련장":
+			setTeam(player, "train")
+			teleport(player, {battletrain})
+			close player's inventory
+			set player's time to 24:00
+			execute console command "npc sel 10"
+			execute console command "npc spawn"
+			execute console command "npc sel 11"
+			execute console command "npc spawn"
+			execute console command "npc sel 12"
+			execute console command "npc spawn"
+			execute console command "npc sel 13"
+			execute console command "npc spawn"
+			execute console command "npc sel 14"
+			execute console command "npc spawn"
+			execute console command "npc sel 16"
+			execute console command "npc spawn"
+			execute console command "npc sel 17"
+			execute console command "npc spawn"
+			execute console command "npc sel 18"
+			execute console command "npc spawn"
+			send "%{PREFIX}% &f훈련장에서 나가려면 &l&n'/spawn'&f을 입력하십시오." to player
+			sendTitle(player, "", "&f훈련장에서 나가려면 &l&n'/spawn'&f을 입력하십시오.", 40 ticks, 10 ticks, 40 ticks)
+			wait 5 tick
+			loop all zombies:
+				if display name of loop-zombie is "&7&lDummy":
+					if loop-zombie.hasAI() is false:
+						loop-zombie.remove()
+			loop 9 times:
+				spawn a zombie at {dummyspawn::%loop-number%}
+				set {_mob} to spawned zombie
+				apply slow of tier 9 without particles to {_mob} for 1 days
+				{_mob}.setAI(false)
+				if loop-number >= 7:
+					setMetadata({_mob}, "shooter", true)
+					setMetadata({_mob}, "mobType", "dummy")
+			loop all entities in radius 5 around location at 241, 220, 253 of "DMGR":
+				if name of loop-entity is "&7&lPlayer":
+					resetMetadata(loop-entity, "ticking")
+			loop all zombies:
+				if "%region at loop-zombie%" contains "BattleTrain":
+					set display name of loop-zombie to "&7&lDummy"
+					set {_mob} to loop-zombie
+					setMetadata({_mob}, "mobType", "dummy")
+					setMetadata({_mob}, "baseSpeed", 0.25)
+					setMetadata({_mob}, "bonusSpeed", 0)
+					set {_mob}'s max health to 10000
+					set {_mob}'s health to 10000
+					set {_mob}'s helmet to white glass
+					set {_chestplate} to leather chestplate
+					set {_leggings} to leather leggings
+					set {_boots} to leather boots
+					dye {_chestplate} (200, 200, 210)
+					dye {_leggings} (200, 200, 210)
+					dye {_boots} (160, 160, 170)
+					set {_mob}'s chestplate to {_chestplate}
+					set {_mob}'s leggings to {_leggings}
+					set {_mob}'s boots to {_boots}
+					set {_mob}'s tool to air
+					{_mob}.setBaby(false)
+					{_mob}.setSilent(true)
+					extinguish {_mob}
+					entityTick({_mob})
+		if name of click item is "&b&l자유 전투":
+			setTeam(player, "pvp-%random integer between 0 to 10000%")
+			teleport(player, {battlepvpwait})
+			close player's inventory
+			set player's time to 14:00
+			set slot 8 of player to emerald named "&a전투원을 선택하십시오."
+			set gamemode of player to survival
+		if name of click item is "&b&l로비":
+			make player execute command "/spawn"
+	if inventory name of current inventory of player is "&0설정":
+		cancel event
+		if clicked inventory = current inventory of player:
+			if click type is not double click:
+				if click item is not 0 air or {gui빈칸}:
+					playSoundPlayer("ui.button.click", player, 1, 1)
+				if name of click item is "&e&l한글 자동 변환":
+					if {%player%::kor} is not set:
+						set {%player%::kor} to true
+						make player execute command "/kakc chmod 2"
+					else:
+						delete {%player%::kor}
+						make player execute command "/kakc chmod 0"
+				else if name of click item is "&e&l가변 시야 범위":
+					if {%player%::fov} is not set:
+						set {%player%::fov} to true
+					else:
+						delete {%player%::fov}
+				else if name of click item is "&e&l조준선 설정":
+					send "%{PREFIX}% &c현재 사용할 수 없는 기능입니다." to player
+					close player's inventory
+					# open chest with 1 row named "&0조준선 설정" to player
+					# set slot 0 of current inventory of player to yellow glass pane named "&a&l점" with no nbt
+					# set slot 1 of current inventory of player to yellow glass pane named "&a&l십자선" with no nbt
+					# set slot 2 of current inventory of player to yellow glass pane named "&a&l십자선 2" with no nbt
+					# set slot 3 of current inventory of player to yellow glass pane named "&a&l점+십자선" with no nbt
+					# set slot 4 of current inventory of player to yellow glass pane named "&a&l원" with no nbt
+					# set slot 8 of current inventory of player to oak wood door item named "&e&l이전"
+					exit
+				else if name of click item is "&e&l채팅 효과음":
+					open chest with 2 row named "&0채팅 효과음" to player
+					set slot 0 of current inventory of player to 1 of barrier named "&c&l음소거" with no nbt
+					set slot 1 of current inventory of player to glowstone block named "&a&l플링 (기본값)" with no nbt
+					set slot 2 of current inventory of player to grass block named "&a&l하프" with no nbt
+					set slot 3 of current inventory of player to oak wooden plank named "&a&l더블 베이스" with no nbt
+					set slot 4 of current inventory of player to white wool named "&a&l기타" with no nbt
+					set slot 5 of current inventory of player to gold block named "&a&l벨" with no nbt
+					set slot 6 of current inventory of player to packed ice named "&a&l차임벨" with no nbt
+					set slot 7 of current inventory of player to soul sand named "&a&l카우벨" with no nbt
+					set slot 8 of current inventory of player to clay block named "&a&l플룻" with no nbt
+					set slot 9 of current inventory of player to quartz block named "&a&l실로폰" with no nbt
+					set slot 10 of current inventory of player to iron block named "&a&l철 실로폰" with no nbt
+					set slot 11 of current inventory of player to pumpkin named "&a&l디저리두" with no nbt
+					set slot 12 of current inventory of player to emerald block named "&a&l비트" with no nbt
+					set slot 13 of current inventory of player to hay block named "&a&l벤조" with no nbt
+					set slot 17 of current inventory of player to {gui버튼left} named "&e&l이전"
+					exit
+				else if name of click item is "&e&l야간 투시":
+					if {%player%::nightvision} is not set:
+						set {%player%::nightvision} to true
+					else:
+						delete {%player%::nightvision}
+				else if name of click item is "&e&l이전":
+					make player execute command "/메뉴"
+					exit
+				else if name of click item is "&c&l나가기":
+					close player's inventory
+					exit
+				make player execute command "/설정"
+	if inventory name of current inventory of player is "&0조준선 설정":
+		cancel event
+		if clicked inventory = current inventory of player:
+			if click type is not double click:
+				if click item is not 0 air or {gui빈칸}:
+					playSoundPlayer("ui.button.click", player, 1, 1)
+				if name of click item is "&a&l점":
+					send resource pack from "https://www.dropbox.com/s/nm4tk8iok6ly783/DVRST.zip?dl=1" to player
+					set {%player%::crosshair} to 0
+				else if name of click item is "&a&l십자선":
+					send resource pack from "https://www.dropbox.com/s/az4o3797piza3x1/dvrst_cross.zip?dl=1" to player
+					set {%player%::crosshair} to 1
+				else if name of click item is "&a&l십자선 2":
+					send resource pack from "https://www.dropbox.com/s/bqhsxy0nwlyoxt6/dvrst_cross2.zip?dl=1" to player
+					set {%player%::crosshair} to 2
+				else if name of click item is "&a&l점+십자선":
+					send resource pack from "https://www.dropbox.com/s/v7vp5wc2whqnp8m/dvrst_dotcross.zip?dl=1" to player
+					set {%player%::crosshair} to 3
+				else if name of click item is "&a&l원":
+					send resource pack from "https://www.dropbox.com/s/0g2p0ncutxxlh8b/dvrst_circle.zip?dl=1" to player
+					set {%player%::crosshair} to 4
+				else if name of click item is "&e&l이전":
+					make player execute command "/설정"
+					exit
+	if inventory name of current inventory of player is "&0채팅 효과음":
+		cancel event
+		if clicked inventory = current inventory of player:
+			if click type is not double click:
+				if name of click item is "&c&l음소거":
+					set {%player%::chatsound} to "mute"
+				else if name of click item is "&a&l플링 (기본값)":
+					set {%player%::chatsound} to "new.block.note_block.pling"
+				else if name of click item is "&a&l하프":
+					set {%player%::chatsound} to "new.block.note_block.harp"
+				else if name of click item is "&a&l더블 베이스":
+					set {%player%::chatsound} to "new.block.note_block.bass"
+				else if name of click item is "&a&l기타":
+					set {%player%::chatsound} to "new.block.note_block.guitar"
+				else if name of click item is "&a&l벨":
+					set {%player%::chatsound} to "new.block.note_block.bell"
+				else if name of click item is "&a&l차임벨":
+					set {%player%::chatsound} to "new.block.note_block.chime"
+				else if name of click item is "&a&l카우벨":
+					set {%player%::chatsound} to "new.block.note_block.cow_bell"
+				else if name of click item is "&a&l플룻":
+					set {%player%::chatsound} to "new.block.note_block.flute"
+				else if name of click item is "&a&l실로폰":
+					set {%player%::chatsound} to "new.block.note_block.xylophone"
+				else if name of click item is "&a&l철 실로폰":
+					set {%player%::chatsound} to "new.block.note_block.iron_xylophone"
+				else if name of click item is "&a&l디저리두":
+					set {%player%::chatsound} to "new.block.note_block.didgeridoo"
+				else if name of click item is "&a&l비트":
+					set {%player%::chatsound} to "new.block.note_block.bit"
+				else if name of click item is "&a&l벤조":
+					set {%player%::chatsound} to "new.block.note_block.banjo"
+				else if name of click item is "&e&l이전":
+					playSoundPlayer("ui.button.click", player, 1, 1)
+					make player execute command "/설정"
+				playSoundPlayer({%player%::chatsound}, player, 1, 1.414)
+	if inventory name of current inventory of player is "&0코어 확인":
+		cancel event
+	if inventory name of current inventory of player is "&0플레이어 정보":
+		cancel event
+		if clicked inventory = current inventory of player:
+			if click type is not double click:
+				if click item is not 0 air or {gui빈칸}:
+					playSoundPlayer("ui.button.click", player, 1, 1)
+				if name of click item is "&e&l전적 보기":
+					set {_target} to "%slot 1 of current inventory of player.getItemMeta().getOwningPlayer()%"
+					make player execute command "/전적 %{_target}%"
+					close player's inventory
+					exit
+				if name of click item is "&e&l차단하기" or "&e&l차단 해제":
+					set {_target} to "%slot 1 of current inventory of player.getItemMeta().getOwningPlayer()%"
+					make player execute command "/차단 %{_target}%"
+					close player's inventory
+					exit
+
+# 전적
+command /전적 [<text>]:
+	aliases: /stat, /wjswjr
+	trigger:
+		if arg 1 is set:
+			if {uuid::%arg 1%} is not set:
+				send "&b&l[ 전적 ] &c해당 플레이어는 서버에 접속한 적이 없습니다."
+				exit
+			set {_player} to {uuid::%arg 1%}
+			set {_playername} to arg 1
+		else:
+			set {_player} to player
+			set {_playername} to player's name
+		if {%{_player}%::battlewin} is not set:
+			set {%{_player}%::battlewin} to 0
+		if {%{_player}%::battlelose} is not set:
+			set {%{_player}%::battlelose} to 0
+		if {%{_player}%::battlequit} is not set:
+			set {%{_player}%::battlequit} to 0
+		loop {%{_player}%::battletime::*}:
+			add loop-value to {_time}
+		set {_totaltime} to parseTimeStringK({_time})
+
+		send "%{PREFIX}% &3========================================="
+		send "%{PREFIX}% &b%{_playername}%&f님의 정보"
+		send "%{PREFIX}% &f"
+		# send "&e◈ &l레벨 &7:: %getLevelPrefix({%{_player}%::lv})%"
+		# send "&e◈ &l랭크 &7:: %getRankPrefix({%{_player}%::rank})% &f(%{%{_player}%::rank}%점)"
+		send "%{PREFIX}% &e◈ &l전적 &7:: &b%{%{_player}%::battlewin}%승 &f/ &c%{%{_player}%::battlelose}%패 &f(승률 %{%{_player}%::battlewin}/({%{_player}%::battlewin}+{%{_player}%::battlelose})*100%％)"
+		send "%{PREFIX}% &e◈ &l탈주 &7:: &c%{%{_player}%::battlequit}%회 &f(탈주율 %({%{_player}%::battlequit}/{%{_player}%::battlecount})*100%％)"
+		send "%{PREFIX}% &e◈ &l플레이 시간 &7:: &c%{_totaltime}%"
+		send "%{PREFIX}% &6◈ &l사용 전투원"
+		send "%{PREFIX}% &f"
+		loop {%{_player}%::battletime::*}:
+			set {_dtime} to parseTimeStringK(loop-value)
+			send "%{PREFIX}% &a&l%loop-index% &7:: &fK/D : %{%{_player}%::battlekill::%loop-index%}/({%{_player}%::battledeath::%loop-index%}+1)% / &e%{_dtime}%"
+		send "%{PREFIX}% &f"
+		#send "&7* 8명 미만의 게임은, 전적에 기록되지 않습니다."
+		send "%{PREFIX}% &3========================================="
+
+# 차단
+command /차단 [<text>]:
+	aliases: /block, /ckeks
+	trigger:
+		if arg 1 is "초기화" or "clear" or "chrlghk":
+			send "&b&l[ 차단 ] &f차단 목록이 초기화되었습니다."
+			delete {%player%::block::*}
+
+		else if arg 1 is "목록" or "list" or "ahrfhr":
+			if size of {%player%::block::*} > 0:
+				open chest with 3 row named "&0차단 목록" to player
+				loop {%player%::block::*}:
+					add 1 to {_i}
+					set slot {_i}-1 of current inventory of player to loop-value named "&e%loop-index%" with lore "&f클릭 시 차단을 해제합니다."
+			else:
+				send "&b&l[ 차단 ] &c차단한 플레이어가 없습니다."
+
+		else if arg 1 is set:
+			set {_arg} to arg 1
+			replace all " " with "" in {_arg}
+			if {uuid::%{_arg}%} is not set:
+				send "&b&l[ 차단 ] &c해당 플레이어는 서버에 접속한 적이 없습니다."
+				exit
+			if {%player%::block::%{_arg}%} is not set:
+				set {%player%::block::%{_arg}%} to skull of "%{_arg}%" parsed as offlineplayer
+				send "&b&l[ 차단 ] &e&n%{_arg}%&f님의 채팅을 차단하였습니다."
+			else:
+				delete {%player%::block::%{_arg}%}
+				send "&b&l[ 차단 ] &e&n%{_arg}%&f님의 채팅 차단을 해제하였습니다."
+
+		else:
+			send "&7==========================================================="
+			send "&a&l/(차단|block) <플레이어> - &a플레이어의 채팅을 차단하거나 차단 해제합니다."
+			send "&a&l/(차단|block) (목록|list) - &a차단 목록을 확인합니다."
+			send "&a&l/(차단|block) (초기화|clear) - &a차단 목록을 초기화합니다."
+			send "&7==========================================================="
+on inventory click:
+	if inventory name of current inventory of player is "&0차단 목록":
+		cancel event
+		if clicked inventory = current inventory of player:
+			if click type is not double click:
+				if click item is not 0 air:
+					set {_target} to "%click item.getItemMeta().getOwningPlayer()%"
+					make player execute command "/차단 %{_target}%"
+					close player's inventory
+					exit

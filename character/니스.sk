@@ -1,0 +1,303 @@
+on script load:
+	set {니스::체력} to 1000
+	set {니스::이동속도} to 1.0
+	set {니스::히트박스} to 1.0
+	
+	set {니스::평R::초당치유량} to 250
+	set {니스::평R::사거리} to 15
+	set {니스::평R::공격력증가} to 20
+	set {니스::평L::피해량} to 100
+	set {니스::평L::공격속도} to 0.35
+	set {니스::평L::사거리} to 20
+
+	set {니스::P1::발동시간} to 2
+	set {니스::P1::초당회복량} to 100
+
+	set {니스::1::쿨타임} to 12
+	set {니스::1::사거리} to 20
+	set {니스::1::최대지급량} to 300
+	set {니스::1::최대용량} to 600
+	set {니스::1::지속시간} to 10
+
+	set {니스::2::쿨타임} to 13
+	set {니스::2::치유량} to 50
+	set {니스::2::지속시간} to 4
+	set {니스::2::사거리} to 20
+
+	set {니스::3::쿨타임} to 2
+	set {니스::3::최대거리} to 30
+
+	set {니스::4::충전량} to 5000
+	set {니스::4::지속시간} to 15
+
+	set {니스::점수::처치 지원} to 20
+	set {니스::점수::치유} to 60
+	set {니스::점수::보호막} to 16
+
+	set {니스::패시브::이름1} to "생명의 힘"
+	set {니스::패시브::1} to "||&6⌛ 일정시간&f동안 피해를 받지 않을 시 &a✚ 회복&f합니다.||||&6⌛ &f2초||&a✚ &f초당 100"
+	set {니스::액티브::이름1} to "충전형 보호막"
+	set {니스::액티브::1} to "||&f바라보는 아군에게 &6⌛ 지속시간&f동안 충전되는 &e✚ 보호막||&f을 지급합니다.||||&6⌛ &f10초||&e✚ &f초당 200 / 최대 300 / 용량 600||&f⬌ &f20m||&f⟳ &l12초||||&7&l[1] &f사용"
+	set {니스::액티브::이름2} to "구원"
+	set {니스::액티브::2} to "||&f바라보는 아군을 &6⌛ 지속시간&f동안 &a✚ 치유&f합니다.||||&6⌛ &f4초||&a✚ &f(아군 최대 체력의 50％)||&f⬌ &f20m||&f⟳ &f13초||||&7&l[2] &f사용"
+	set {니스::액티브::이름3} to "도움의 손길"
+	set {니스::액티브::3} to "||&f바라보는 아군을 향해 날아갑니다.||||&f⬌ &f30m||&f⟳ &f2초||||&7&l[3] &f사용 / 해제"
+	set {니스::액티브::이름4} to "치유의 물결"
+	set {니스::액티브::4} to "||&6⌛ 지속시간&f동안 기본 무기의 치유 광선이 치유를 받는 아군의||&f주변 아군에게 전파됩니다.||&f지속되는 동안 '생명의 힘' 효과가 항상 발동됩니다.||||&6⌛ &f15초||&f⚡ &f5000||||&7&l[4] &f사용"
+function 니스_평R(player: player):
+	if getCooldown("%{_player}'s id%-평R-초기화") = 0 ticks:
+		resetMetadata({_player}, "평R-치유대상")
+	if getCooldown("%{_player}'s id%-평R-벽초기화") = 0 ticks:
+		resetMetadata({_player}, "평R-치유대상")
+
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location 0.4 down {_ploc}
+	if getMetadata({_player}, "평R-치유대상") is set:
+		playSound("entity.guardian.attack", {_player}, 0.2, 2)
+		playSound("block.lava.extinguish", {_player}, 0.1, 2)
+		set {_htarget} to getMetadata({_player}, "평R-치유대상")
+		set {_dir} to getLine({_loc}, location (hitbox length of {_htarget}/2) up {_htarget}, 0.4)
+
+		if distance between {_loc} and {_htarget} > skill({_player}, "평R::사거리"):
+			resetMetadata({_player}, "평R-치유대상")
+		if canPass({_loc}, location of {_htarget}'s head) is true:
+			setCooldown("%{_player}'s id%-평R-벽초기화", 3 seconds)
+		setCooldown("%{_player}'s id%-평R-초기화", 4 ticks)
+		setCooldown("%{_htarget}'s id%-buff-니스-평R", 5 ticks)
+		setMetadata({_htarget}, "니스", {_player})
+		heal({_player}, {_htarget}, (skill({_player}, "평R::초당치유량")/20), {니스::점수::치유})
+
+		if getChar({_htarget}) is set:
+			sendTitle({_player}, "", "&a✚ &f치유 중 : &e%getChar({_htarget})%", 5 ticks, 0 ticks, 5 ticks)
+
+		if isUsingSkill({_player}, 3) is true:
+			loop nearTeamers({_player}, location of {_htarget}'s head, 15):
+				if loop-entity != {_player}:
+					if loop-entity != {_htarget}:
+						if canPass(location of {_htarget}'s head, location of loop-entity's head) is true:
+							setCooldown("%loop-entity's id%-buff-니스-평R", 5 ticks)
+							heal({_player}, loop-entity, (skill({_player}, "평R::초당치유량")/20), {니스::점수::치유})
+							loop line between location (hitbox length of {_htarget}/2) up {_htarget} and location (hitbox length of loop-entity/2) up loop-entity with density 1:
+								particleRGB(loop-location, 0, 0, 0, 255, 255, 140, 1)
+	else:
+		set {_dir} to getLineOfSight({_player}, 0.4)
+
+	while distance between {_ploc} and {_loc} < skill({_player}, "평R::사거리"):
+		add 1 to {_i}
+		if {_htarget} is set:
+			if distance between {_loc} and location (hitbox length of {_htarget}/2) up {_htarget} < 1:
+				exit loop
+		else:
+			if isNonSolid({_loc}~{_dir}) is false:
+				exit loop
+
+			if distance between {_ploc} and {_loc} > 0.5:
+				set {_target} to nearTeamer({_player}, {_loc}, {Skill::TARGET_HITBOX})
+				if {_target} is set:
+					if {_target} is a player:
+						setMetadata({_player}, "평R-치유대상", {_target})
+						setCooldown("%{_player}'s id%-평R-초기화", 4 ticks)
+						setCooldown("%{_player}'s id%-평R-벽초기화", 3 seconds)
+						exit loop
+
+		set {_loc} to {_loc}~{_dir}
+		if {_htarget} is set:
+			if mod({_i}, 3) = 0:
+				particleRGB(location 0.2 right {_loc}, 0, 0, 0, 255, 255, 140, 1)
+function 니스_평L(player: player):
+	setItemCooldown({_player}, parseTimespan(skill({_player}, "평L::공격속도")*20))
+	apply mining fatigue of tier 1 without particles to {_player} for parseTimespan(skill({_player}, "평L::공격속도")*20) replacing existing effect
+	playSound("entity.irongolem.attack", {_player}, 1, 2)
+	playSound("entity.ghast.shoot", {_player}, 1, 1.8)
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location 0.2 right location 0.2 down {_ploc}
+	set {_dir} to getLineOfSight({_player})
+	set {_speed} to 50
+
+	while distance between {_ploc} and {_loc} < skill({_player}, "평L::사거리"):
+		if getChar({_player}) = "니스":
+			add 1 to {_i}
+			if isNonSolid({_loc}~{_dir}) is false:
+				set {__loc} to location of {_loc}
+				set {_loc} to {_loc}~{_dir}
+				loop 4 times:
+					if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+						set {__loc} to {__loc}~vMul({_dir}, 0.2)
+				particleRGB({__loc}, 0.15, 0.15, 0.15, 255, 255, 255, 15)
+				exit loop
+
+			if distance between {_ploc} and {_loc} > 0.5:
+				set {_target} to nearEnemy({_player}, {_loc}, {Skill::PROJ_HITBOX})
+				if {_target} is set:
+					set {__loc} to location of {_loc}
+					loop 10 times:
+						set {__loc} to {__loc}~vMul({_dir}, 0.5)
+						if isHeadshot({__loc}, {_target}) is true:
+							set {_headshot} to true
+					exit loop
+
+			set {_loc} to {_loc}~{_dir}
+			if mod({_i}, 5) = 0:
+				particleRGB({_loc}, 0.05, 0.05, 0.05, 255, 255, 235, 2)
+				particle("crit", {_loc}, 0.05, 0.05, 0.05, 0, 2)
+			if mod({_i}/4, {_speed}/20) = 0:
+				wait 1 tick
+		else:
+			exit
+
+	if {_target} is set:
+		damage({_player}, {_target}, skill({_player}, "평L::피해량"), {_loc}~{_dir}, "normal-평L", "%{_headshot}%" parsed as boolean)
+function 니스_1(player: player):
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location of {_ploc}
+	set {_dir} to getLineOfSight({_player})
+
+	while distance between {_ploc} and {_loc} < skill({_player}, "1::사거리"):
+		add 1 to {_i}
+		if isNonSolid({_loc}~{_dir}) is false:
+			exit loop
+
+		if distance between {_ploc} and {_loc} > 0.5:
+			set {_target} to nearTeamer({_player}, {_loc}, {Skill::TARGET_HITBOX})
+			if {_target} is set:
+				if {_target} is a player:
+					exit loop
+			delete {_target}
+
+		set {_loc} to {_loc}~{_dir}
+
+	if {_target} is set:
+		if getMetadata({_target}, "니스-1-최대지급량") is not set:
+			setSkillCooldown({_player}, 0, rounded skill({_player}, "1::쿨타임"))
+			loop line between location 1 up {_player} and location (hitbox length of {_target}/2) up {_target} with density 3:
+				particleRGB(loop-location, 0, 0, 0, 225, 255, 120, 1)
+				particle("happyvillager", loop-location, 0, 0, 0, 0, 1)
+			playSound("entity.evocation_illager.cast_spell", {_player}, 2, 1.6)
+			playSound("new.block.respawn_anchor.charge", {_target}, 2, 1.4)
+			playSound("new.block.note_block.chime", {_target}, 2, 1.6)
+			playSound("new.block.note_block.chime", {_target}, 2, 1.2)
+			firework(location (hitbox length of {_target}/2) up {_target}, 225, 255, 120, 225, 255, 120, 0)
+			setMetadata({_target}, "니스-1-최대지급량", skill({_player}, "1::최대용량"))
+			setMetadata({_target}, "니스-1-최대용량", skill({_player}, "1::최대용량"))
+
+			loop skill({_player}, "1::지속시간")*20 times:
+				if parseNumber("%getMetadata({_target}, "니스-1-최대지급량")%") > 0:
+					# send "%getShield({_target}, "충전형보호막")%" to {user}
+					if getShield({_target}, "니스-1") < skill({_player}, "1::최대지급량"):
+						addShield({_target}, "니스-1", skill({_player}, "1::최대지급량")/40, skill({_player}, "1::최대지급량"))
+						addMetadata({_target}, "니스-1-최대지급량", (skill({_player}, "1::최대지급량")/40)*-1)
+						addScore({_player}, "보호막 제공", {니스::점수::보호막}/80)
+						
+					wait 1 tick
+				else:
+					exit loop
+
+			resetMetadata({_target}, "니스-1-최대지급량")
+			resetMetadata({_target}, "니스-1-최대용량")
+			loop 2*20 times:
+				if getShield({_target}, "니스-1") > 0:
+					addShield({_target}, "니스-1", (skill({_player}, "1::최대지급량")/40)*-1)
+					wait 1 tick
+				else:
+					exit loop
+		else:
+			alert({_player}, "이미 충전형 보호막을 보유한 대상입니다.")
+	else:
+		alert({_player}, "대상을 찾을 수 없습니다.")
+function 니스_2(player: player):
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location of {_ploc}
+	set {_dir} to getLineOfSight({_player})
+	while distance between {_ploc} and {_loc} < skill({_player}, "2::사거리"):
+		add 1 to {_i}
+		if isNonSolid({_loc}~{_dir}) is false:
+			exit loop
+
+		if distance between {_ploc} and {_loc} > 0.5:
+			set {_target} to nearTeamer({_player}, {_loc}, {Skill::TARGET_HITBOX})
+			if {_target} is set:
+				if {_target} is a player:
+					exit loop
+			delete {_target}
+
+		set {_loc} to {_loc}~{_dir}
+
+	if {_target} is set:
+		setSkillCooldown({_player}, 1, rounded skill({_player}, "2::쿨타임"))
+		loop line between location 1 up {_player} and location (hitbox length of {_target}/2) up {_target} with density 3:
+			particleRGB(loop-location, 0, 0, 0, 215, 255, 30, 1)
+		playSound("entity.evocation_illager.cast_spell", {_player}, 2, 1.5)
+		playSound("block.enchantment_table.use", {_target}, 2, 1.4)
+		playSound("block.enchantment_table.use", {_target}, 2, 1.4)
+		playSound("entity.ghast.shoot", {_target}, 2, 2)
+		set {_heal} to ({_target}'s max health*100)*(skill({_player}, "2::치유량"))/100
+		particleRGB(location (hitbox length of {_target}/2) up {_target}, 1, 1, 1, 215, 255, 30, 150)
+		particle("explosion", location (hitbox length of {_target}/2) up {_target}, 0.5, 0.5, 0.5, 0.15, 30)
+
+		loop skill({_player}, "2::지속시간")*20 times:
+			heal({_player}, {_target}, {_heal}/(skill({_player}, "2::지속시간")*20), 60)
+			particleRGB(location (hitbox length of {_target}/2) up {_target}, 1, 1, 1, 215, 255, 30, 3)
+			wait 1 tick
+	else:
+		alert({_player}, "대상을 찾을 수 없습니다.")
+function 니스_3(player: player):
+	if isUsingSkill({_player}, 2) is false:
+		set {_ploc} to location of {_player}'s head
+		set {_loc} to location of {_ploc}
+		set {_dir} to getLineOfSight({_player})
+
+		while distance between {_ploc} and {_loc} < skill({_player}, "3::최대거리"):
+			add 1 to {_i}
+			if isNonSolid({_loc}~{_dir}) is false:
+				exit loop
+
+			if distance between {_ploc} and {_loc} > 0.5:
+				set {_target} to nearTeamer({_player}, {_loc}, {Skill::TARGET_HITBOX})
+				if {_target} is set:
+					if {_target} is a player:
+						exit loop
+				delete {_target}
+
+			set {_loc} to {_loc}~{_dir}
+		if {_target} is set:
+			setSkillDuration({_player}, 2, -1)
+			playSound("random.swing", {_player}, 1.2, 1.4)
+			playSound("entity.enderdragon.flap", {_player}, 1.2, 1.6)
+
+			loop skill({_player}, "3::최대거리")*1 times:
+				if getChar({_player}) = "니스":
+					if isUsingSkill({_player}, 2) is false:
+						exit loop
+					particle("endrod", location 1 up {_player}, 0.2, 0.4, 0.2, 0.1, 6)
+					push({_player}, getLine({_player}, location 0.5 up {_target}, 0.9), true)
+					set fall distance of {_player} to 0
+					wait 1 tick
+
+					if distance between {_player} and location of {_target}'s head < 3.5:
+						push({_player}, getLine({_player}, location 0.5 up {_target}, 0.3), true)
+						exit loop
+					if getCooldown("%{_target}'s id%-death") > 0 ticks:
+						exit loop
+					if isStunned({_player}) is true:
+						exit loop
+					if getCooldown("%{_player}'s id%-knockback") > 0 ticks:
+						exit loop
+
+			if getChar({_player}) = "니스":
+				setSkillCooldown({_player}, 2, rounded skill({_player}, "3::쿨타임"))
+		else:
+			alert({_player}, "대상을 찾을 수 없습니다.")
+	else:
+		setSkillCooldown({_player}, 2, rounded skill({_player}, "3::쿨타임"))
+function 니스_4(player: player):
+	setSkillDuration({_player}, 3, rounded skill({_player}, "4::지속시간"))
+	setCooldown("%{_player}'s id%-4-지속시간", parseTimespan(skill({_player}, "4::지속시간")*20))
+	useUlt({_player})
+	playSound("entity.evocation_illager.prepare_summon", {_player}, 3, 1.1)
+	playSound("entity.evocation_illager.prepare_summon", {_player}, 3, 1.1)
+	firework(location 1 up {_player}, 255, 255, 110, 255, 255, 255, 4, true)
+
+	loop skill({_player}, "4::지속시간")*20+1 times:
+		if getChar({_player}) = "니스":
+			particleRGB(location 1 up {_player}, 1, 1, 1, 255, 255, 110, 3)
+			wait 1 tick

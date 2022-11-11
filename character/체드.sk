@@ -1,0 +1,716 @@
+on script load:
+	set {체드::체력} to 1000
+	set {체드::이동속도} to 1.1
+	set {체드::히트박스} to 1.0
+
+	set {체드::평::피해량} to 500
+
+	set {체드::S1::치명타계수} to 2
+
+	set {체드::S2::쿨타임} to 10
+	set {체드::S2::충전량} to 3
+	set {체드::S2::초당화염피해량} to 50
+	set {체드::S2::화염지속시간} to 5
+
+	set {체드::1::쿨타임} to 12
+	set {체드::1::피해량} to 400
+	set {체드::1::지속시간} to 5
+
+	set {체드::2::쿨타임} to 5
+
+	set {체드::3::쿨타임} to 24
+	set {체드::3::범위} to 7
+	set {체드::3::발각지속시간} to 6
+	set {체드::3::사거리} to 70
+
+	set {체드::4::충전량} to 9000
+	set {체드::4::피해량} to 2000
+	set {체드::4::사거리} to 70
+	set {체드::4::범위} to 7
+	set {체드::4::초당화염피해량} to 100
+	set {체드::4::화염지속시간} to 8
+
+	set {체드::점수::헤드샷} to 8
+	set {체드::점수::불화살} to 7
+	set {체드::점수::연속 화살} to 5
+	set {체드::점수::위치 발각} to 8
+	set {체드::점수::처치 지원} to 15
+	set {체드::점수::궁극기 보너스} to 30
+
+	set {체드::특성::이름1} to "저격수"
+	set {체드::특성::1} to "||&e⬆&c⚔ 치명타 &f피해가 높아집니다.||||&e⬆&c⚔ &f×2.0"
+	set {체드::특성::이름2} to "불화살"
+	set {체드::특성::2} to "||&f적을 &5⚠ 불&f태워 추가 피해를 주는 화살입니다.||&f일정시간마다 &9불화살&f이 충전됩니다.||||&5⚠ &6⌛ &f5초||&5⚠ &c⚔ &f초당 50 / 치명타 100||&f⟳ &f10초 / 3회 충전"
+	set {체드::패시브::이름1} to "벽타기"
+	set {체드::패시브::1} to "||&7벽타기&f를 할 수 있습니다.||||&7&l[좌클릭] &f벽타기"
+	set {체드::액티브::이름1} to "연속 화살"
+	set {체드::액티브::1} to "||&6⌛ 지속시간&f동안 &c⚔ 기본 공격&f을 충전 없이 3회||&f연속으로 발사할 수 있습니다.||||&6⌛ &f5초||&c⚔ &f400||&c⟳ &f0.3초||&f⟳ &f12초||||&7&l[1] &f사용"
+	set {체드::액티브::이름2} to "윈드스텝"
+	set {체드::액티브::2} to "||&f이동 방향으로 도약합니다.||&f공중에서만 사용할 수 있습니다.||||&f⟳ &l5초||||&7&l[2] [SPACE] &f사용"
+	set {체드::액티브::이름3} to "고스트 피닉스"
+	set {체드::액티브::3} to "||&f벽을 관통하는 유령 불사조를 날려보냅니다.||&f불사조에 닿은 적의 위치를 &6⌛ 지속시간&f동안 아군에게 표시합니다.||||&6⌛ &f6초||&c⬌ &f70m||&c✸ &f7m||&f⟳ &f24초||||&7&l[3] &f사용"
+	set {체드::액티브::이름4} to "피닉스 스트라이크"
+	set {체드::액티브::4} to "||&f벽을 관통하는 화염 불사조를 날려보냅니다.||&f불사조가 적에 닿으면 폭발하여 &c⚔ 광역 피해&f를 입히고||&5⚠ 화염 지대&f를 생성합니다.||||&c⚔ &f2000||&c⬌ &f70m||&c✸ &f7m||&5⚠ &6⌛ &f8초||&5⚠ &c⚔ &f초당 100||&f⚡ &f9000||||&7&l[4] &f사용"
+function 체드_평_효과음(player: player, power: number):
+	if name of {_player}'s tool contains "[불화살]":
+		playSound("new.item.crossbow.shoot", {_player}, 0.4+{_power}*1, 1.2+{_power}*0.3)
+		playSound("random.gun.bow", {_player}, 0.4+{_power}*1, 0.8+{_power}*0.3)
+		playSound("entity.ghast.shoot", {_player}, 0.5+{_power}*1, 1.3)
+	else:
+		playSound("new.item.crossbow.shoot", {_player}, 0.2+{_power}*0.6, 1.2+{_power}*0.3)
+		playSound("random.gun.bow", {_player}, 0.2+{_power}*0.6, 0.8+{_power}*0.3)
+		playSound("random.gun2.shovel_leftclick", {_player}, 0.35+{_power}*0.6, 0.9)
+
+	set slot 21 of {_player} to air
+	wait 2 tick
+	if getCooldown("%{_player}'s id%-wallride") = 0 ticks:
+		set slot 21 of {_player} to arrow
+function 체드_평(player: player, power: number):
+	if {_power} > 1:
+		set {_power} to 1
+
+	if name of {_player}'s tool contains "[불화살]":
+		addMetadata({_player}, "S2-충전량", -1)
+		if getMetadata({_player}, "S2-충전량") <= 0:
+			set slot 4 of {_player} to {아폴론}
+		set {_fire} to true
+	체드_평_효과음({_player}, {_power})
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location of {_ploc}
+	set {_dir} to getLineOfSight({_player})
+	set {_speed} to {_power} rounded 1 decimal digits*100
+
+	while distance between {_ploc} and {_loc} < {Skill::MAX_RANGE}:
+		if getChar({_player}) = "체드":
+			add 1 to {_i}
+			if isNonSolid({_loc}~{_dir}) is false:
+				set {__loc} to location of {_loc}
+				set {_hitloc} to {_loc}~{_dir}
+				loop 4 times:
+					if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+						set {__loc} to {__loc}~vMul({_dir}, 0.2)
+				playSound("random.gun.arrowhit", {__loc}, 0.3+{_power}*0.4, 1)
+				meleeHit({__loc}, block at {_hitloc})
+				if {_fire} is true:
+					particle("lava", {__loc}, 0, 0, 0, 0.5, 3)
+				exit loop
+
+			if distance between {_ploc} and {_loc} > 0.5:
+				set {_target} to nearEnemy({_player}, {_loc}, {Skill::PROJ_HITBOX})
+				if {_target} is set:
+					set {__loc} to location of {_loc}
+					loop 10 times:
+						set {__loc} to {__loc}~vMul({_dir}, 0.5)
+						if isHeadshot({__loc}, {_target}) is true:
+							set {_headshot} to true
+					exit loop
+
+			set {_loc} to {_loc}~{_dir}
+			if vector length of {_dir} > 0.1:
+				add -0.00018 to vector length of {_dir}
+			if mod({_i}, 5) = 0:
+				if {_fire} is true:
+					particle("flame", location 0.2 right location 0.2 down {_loc}, 0, 0, 0, 0, 1)
+				loop all players:
+					if getTeam({_player}) = getTeam(loop-player):
+						particle_P("crit", location 0.2 right location 0.2 down {_loc}, 0, 0, 0, 0, 1, loop-player)
+			if mod({_i}/4, {_speed}/20) = 0:
+				if isNonSolid(location 0.1 down {_loc}) is true:
+					subtract 0.055/(({_speed}*4)/20) from y of {_dir}
+				wait 1 tick
+		else:
+			exit
+
+	if {_target} is set:
+		if {_fire} is true:
+			set {_burn} to skill({_player}, "S2::초당화염피해량")
+			if {_headshot} is true:
+				set {_burn} to {_burn}*2
+			burn({_player}, {_target}, {_burn}, skill({_player}, "S2::화염지속시간"), "S2")
+			set {_type} to "normal-평-불화살"
+		else:
+			set {_type} to "normal-평"
+		damage({_player}, {_target}, skill({_player}, "평::피해량")*{_power}, {_loc}~{_dir}, "%{_type}%", "%{_headshot}%" parsed as boolean)
+function 체드_P1(player: player):
+	set {_wallride} to parseNumber("%getMetadata({_player}, "wallride")%")
+	if {_wallride} > 9:
+		exit
+
+	set slot 21 of {_player} to air
+	loop 10 times:
+		set {_wallride} to parseNumber("%getMetadata({_player}, "wallride")%")
+		if {_wallride} > 9:
+			exit loop
+		if isNonSolid(location 0.5 up {_player}'s head) is false:
+			exit loop
+		addMetadata({_player}, "wallride", 1)
+		setCooldown("%{_player}'s id%-wallride", 5 ticks)
+
+		if isNonSolid(location 0.8 horizontally forwards {_player}'s head) is true:
+			push({_player}, vector 0, 0.42, 0, true)
+			setCooldown("%{_player}'s id%-wallride", 0 ticks)
+			exit loop
+		else:
+			playSound("block.stone.step", {_player}, 0.9, 0.5)
+			sendTitle({_player}, "", getBar(9-{_wallride}, 9, "&f"), 10 ticks, 0 ticks, 5 ticks)
+			push({_player}, vector 0, 0.52, 0, true)
+			wait 3 tick
+	set slot 21 of {_player} to arrow
+
+	while (check [block at location 0.1 down {_player} is air]) or (check [{_player} isn't on ground]) is true:
+		wait 1 tick
+
+	resetMetadata({_player}, "wallride")
+function 체드_S2(player: player):
+	if getCooldown("%{_player}'s id%-scope") = 0 ticks:
+		setCooldown("%{_player}'s id%-scope", 4 ticks)
+		if name of {_player}'s tool contains "[일반]":
+			if getMetadata({_player}, "S2-충전량") > 0:
+				playSound("new.item.crossbow.loading_end", {_player}, 0.7, 1.6)
+				playSound("entity.irongolem.attack", {_player}, 0.7, 1.8)
+				if name of slot 4 of {_player} contains "연속 화살":
+					replace all "[일반]" with "[불화살]" in name of slot 4 of {_player}
+					set durability of slot 4 of {_player} to 11
+				else:
+					set slot 4 of {_player} to {아폴론_불화살}
+			else:
+				alert({_player}, "불화살이 없습니다.")
+
+		else if name of {_player}'s tool contains "[불화살]":
+			playSound("new.item.crossbow.loading_end", {_player}, 0.7, 1.6)
+			playSound("entity.irongolem.attack", {_player}, 0.7, 1.8)
+			if name of slot 4 of {_player} contains "연속 화살":
+				replace all "[불화살]" with "[일반]" in name of slot 4 of {_player}
+				set durability of slot 4 of {_player} to 10
+			else:
+				set slot 4 of {_player} to {아폴론}
+function 체드_1_발동(player: player):
+	setItemCooldown({_player}, 6 ticks)
+	if name of {_player}'s tool contains "[불화살]":
+		addMetadata({_player}, "S2-충전량", -1)
+		if getMetadata({_player}, "S2-충전량") <= 0:
+			replace all "[불화살]" with "[일반]" in name of slot 4 of {_player}
+			set durability of slot 4 of {_player} to 10
+		set {_fire} to true
+	if {_fire} is true:
+		playSound("new.item.crossbow.shoot", {_player}, 1.5, 1.6)
+		playSound("random.gun.bow", {_player}, 1.5, 1.2)
+		playSound("entity.ghast.shoot", {_player}, 1.7, 1.4)
+	else:
+		playSound("new.item.crossbow.shoot", {_player}, 1, 1.6)
+		playSound("random.gun.bow", {_player}, 1, 1.2)
+		playSound("random.gun2.shovel_leftclick", {_player}, 1.2, 1)
+
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location of {_ploc}
+	set {_dir} to getLineOfSight({_player})
+	set {_speed} to 90
+	set {_hit} to 0
+
+	while distance between {_ploc} and {_loc} < {Skill::MAX_RANGE}:
+		if getChar({_player}) = "체드":
+			add 1 to {_i}
+			if isNonSolid({_loc}~{_dir}) is false:
+				add 1 to {_hit}
+				set {__loc} to location of {_loc}
+				set {_hitloc} to {_loc}~{_dir}
+				loop 4 times:
+					if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+						set {__loc} to {__loc}~vMul({_dir}, 0.2)
+					else:
+						exit loop
+				playSound("random.gun.arrowhit", {__loc}, 0.25+vector length of {_dir}*3, 1)
+				playSound("random.gun.ricochet", {__loc}, 0.25+vector length of {_dir}*3, 1.5)
+				meleeHit({__loc}, block at {_hitloc})
+				particleRGB({__loc}, 0.25, 0.25, 0.25, 75, 170, 177, 15)
+				if {_fire} is true:
+					particle("lava", {__loc}, 0, 0, 0, 0.5, 3)
+				set {_bounce} to vector between location of block at {_hitloc} and location of block at {__loc}
+				set {_yaw} to yaw of {_bounce}
+				set {_pitch} to pitch of {_bounce}
+				if abs({_pitch}) >= 45:
+					set y of {_dir} to 0 - (y of {_dir})
+				else:
+					set {_hitdir} to floor(mod({_yaw} + 45, 360)/90)
+					if abs({_hitdir}) = 1 or 3:
+						set x of {_dir} to 0 - (x of {_dir})
+					else:
+						set z of {_dir} to 0 - (z of {_dir})
+				set vector length of {_dir} to vector length of {_dir} * 0.8
+
+			if distance between {_ploc} and {_loc} > 0.5:
+				set {_target} to nearEnemy({_player}, {_loc}, {Skill::PROJ_HITBOX})
+				if {_target} is set:
+					set {__loc} to location of {_loc}
+					loop 10 times:
+						set {__loc} to {__loc}~vMul({_dir}, 0.5)
+						if isHeadshot({__loc}, {_target}) is true:
+							set {_headshot} to true
+					exit loop
+
+			set {_loc} to {_loc}~{_dir}
+			if vector length of {_dir} > 0.1:
+				add -0.0002 to vector length of {_dir}
+			if mod({_i}, 4) = 0:
+				if {_fire} is true:
+					particle("flame", location 0.2 right location 0.2 down {_loc}, 0, 0, 0, 0, 1)
+				loop all players:
+					if getTeam({_player}) = getTeam(loop-player):
+						particle_P("critmagic", location 0.2 right location 0.2 down {_loc}, 0, 0, 0, 0, 1, loop-player)
+			if mod({_i}/4, {_speed}/20) = 0:
+				if isNonSolid(location 0.1 down {_loc}) is true:
+					subtract 0.055/(({_speed}*4)/20) from y of {_dir}
+				wait 1 tick
+			if {_hit} > 3:
+				exit loop
+		else:
+			exit
+
+	if {_target} is set:
+		if {_fire} is true:
+			set {_burn} to skill({_player}, "S2::초당화염피해량")
+			if {_headshot} is true:
+				set {_burn} to {_burn}*2
+			burn({_player}, {_target}, {_burn}, skill({_player}, "S2::화염지속시간"), "S2")
+			set {_type} to "normal-1-불화살"
+		else:
+			set {_type} to "normal-1"
+		damage({_player}, {_target}, skill({_player}, "1::피해량"), {_loc}~{_dir}, "%{_type}%", "%{_headshot}%" parsed as boolean)
+function 체드_1(player: player):
+	playSound("new.item.crossbow.loading_end", {_player}, 0.7, 1.4)
+	playSound("entity.cat.purreow", {_player}, 0.7, 2)
+	setSkillDuration({_player}, 0, -1)
+	setItemCooldown({_player}, 6 ticks, true)
+
+	loop 6 times:
+		if getChar({_player}) = "체드":
+			wait 1 tick
+			if isStunned({_player}) is true:
+				set {_exit} to true
+				exit loop
+
+	if getChar({_player}) = "체드":
+		setSkillDuration({_player}, 0, rounded skill({_player}, "1::지속시간"), rounded skill({_player}, "1::쿨타임"))
+		setCooldown("%{_player}'s id%-1-지속시간", parseTimespan(skill({_player}, "1::지속시간")*20))
+		if {_exit} is not set:
+			playSound("entity.evocation_illager.cast_spell", {_player}, 1, 1.2)
+			if name of slot 4 of {_player} contains "[일반]":
+				set slot 4 of {_player} to {체드_연속화살}
+			else if name of slot 4 of {_player} contains "[불화살]":
+				set slot 4 of {_player} to {체드_연속화살_불}
+
+			loop skill({_player}, "1::지속시간")*20+1 times:
+				if getChar({_player}) = "체드":
+					if isUsingSkill({_player}, 0) is false:
+						exit loop
+					particleRGB(location 1 up {_player}, 1, 1, 1, 75, 170, 177, 3)
+					wait 1 tick
+
+			if getChar({_player}) = "체드":
+				if name of slot 4 of {_player} contains "[일반]":
+					set slot 4 of {_player} to {아폴론}
+				else if name of slot 4 of {_player} contains "[불화살]":
+					set slot 4 of {_player} to {아폴론_불화살}
+function 체드_2(player: player):
+	if {_player} is on ground:
+		alert({_player}, "공중에서만 사용할 수 있습니다.")
+		exit
+
+	setSkillCooldown({_player}, 1, rounded skill({_player}, "2::쿨타임"))
+	set {_loc} to {_player}'s location
+	set {_rloc} to {_player}'s location
+	loop 2 times:
+		if {_loc} = {_rloc}:
+			wait 1 tick
+			set {_rloc} to {_player}'s location
+	if x-coord of {_loc} = x-coord of {_rloc}:
+		if z-coord of {_loc} = z-coord of {_rloc}:
+			set {_rloc} to location 0.2 horizontally forwards {_player}
+	set y-coord of {_rloc} to y-coord of {_loc}
+	set {_vel} to getLine({_loc}, {_rloc}, 0.7)
+	add 0.25 to y of {_vel}
+	push({_player}, {_vel}, true)
+	playSound("random.swing", {_player}, 1, 0.7)
+	playSound("entity.enderdragon.flap", {_player}, 1, 1.3)
+	particle("explosion", location 0.5 up {_player}, 0.4, 0.1, 0.4, 0.15, 20)
+
+	loop 10 times:
+		particle("explosion", {_player}, 0, 0, 0, 0.05, 1)
+		wait 1 tick
+function 체드_3_이펙트(player: player):
+	loop 5 times:
+		add 1 to {_i}
+		set {_ploc} to location of {_player}'s head
+		set {_loc::%{_i}%} to location 2 forwards {_ploc}
+		set {_axis} to getRollAxis({_loc::%{_i}%})
+		set {_dir::%{_i}%} to vMul(getPitchAxis({_loc::%{_i}%}), 0.15)
+		rotate {_dir::%{_i}%} around {_axis} by 90+(360/5*(loop-number-1)) degrees
+	loop 5 times:
+		add 1 to {_i}
+		set {_ploc} to location of {_player}'s head
+		set {_loc::%{_i}%} to location 2 forwards {_ploc}
+		set {_axis} to getRollAxis({_loc::%{_i}%})
+		set {_dir::%{_i}%} to vMul(getPitchAxis({_loc::%{_i}%}), 0.15)
+		rotate {_dir::%{_i}%} around {_axis} by 90+(360/5*(loop-number-1)) degrees
+		set {_loc::%{_i}%} to {_loc::%{_i}%}~vMul({_dir::%{_i}%}, 8)
+	set {_rloc} to location 2 forwards {_ploc}
+	set {_i} to 0
+
+	loop 20 times:
+		if getChar({_player}) = "체드":
+			add 1 to {_i}
+			set {_j} to 0
+
+			loop 10 times:
+				add 1 to {_j}
+				set {_loc} to {_loc::%{_j}%}
+				set {_dir} to {_dir::%{_j}%}
+				if {_i} < 10:
+					if {_j} <= 5:
+						rotate {_dir::%{_j}%} around {_axis} by 16 degrees
+					else:
+						rotate {_dir::%{_j}%} around {_axis} by 16 degrees
+				else:
+					if {_j} <= 5:
+						rotate {_dir::%{_j}%} around {_axis} by 8 degrees
+					else:
+						rotate {_dir::%{_j}%} around {_axis} by 8 degrees
+				set {_loc::%{_j}%} to {_loc}~{_dir}
+				set {_x} to x of {_dir}
+				set {_y} to y of {_dir}
+				set {_z} to z of {_dir}
+				if {_i} < 10:
+					particle("critmagic", {_loc::%{_j}%}, 0.05, 0.05, 0.05, 0, 2)
+					particle("smoke", {_loc::%{_j}%}, {_x}, {_y}, {_z}, 0.6, 0)
+				else:
+					particle("critmagic", location ({_i}-10)*0.25 forwards {_loc::%{_j}%}, 0.05, 0.05, 0.05, 0, 2)
+					particle("smoke", location ({_i}-10)*0.25 forwards {_loc::%{_j}%}, {_x}, {_y}, {_z}, 1.2, 0)
+			wait 1 tick
+function 체드_3_발동(player: player, target: entity):
+	if {_target} is a player:
+		addScore({_player}, "위치 발각", {체드::점수::위치 발각})
+		setCooldown("%{_player}'s id%-sup-%{_target}'s id%-normal-3", parseTimespan(skill({_player}, "3::발각지속시간")*20))
+	loop all players:
+		if getTeam({_player}) = getTeam(loop-player):
+			setGlowing({_target}, loop-player, "red")
+	loop skill({_player}, "3::발각지속시간")*20 times:
+		if getChar({_player}) = "체드":
+			wait 1 tick
+	loop all players:
+		if getTeam({_player}) = getTeam(loop-player):
+			resetGlowing({_target}, loop-player)
+function 체드_3(player: player):
+	setSkillDuration({_player}, 2, -1)
+	setItemCooldown({_player}, 10 ticks, true)
+	playSound("entity.evocation_illager.cast_spell", {_player}, 1, 0.8)
+	set slot 21 of {_player} to air
+
+	loop 10 times:
+		if getChar({_player}) = "체드":
+			setCooldown("%{_player}'s id%-nojump", 2 ticks)
+			setCooldown("%{_player}'s id%-nosprint", 2 ticks)
+			wait 1 tick
+			if isStunned({_player}) is true:
+				set {_exit} to true
+				exit loop
+
+	if getChar({_player}) = "체드":
+		setSkillCooldown({_player}, 2, rounded skill({_player}, "3::쿨타임"))
+		set slot 21 of {_player} to arrow
+		if {_exit} is not set:
+			set {_ploc} to location of {_player}'s head
+			set {_loc} to location 0.4 down {_ploc}
+			set pitch of {_loc} to 0
+			set {_dir} to getLineOfSight({_player})
+			set {_speed} to 30
+			체드_3_이펙트({_player})
+			playSound("block.enchantment_table.use", {_player}, 1, 0.7)
+			playSound("block.enchantment_table.use", {_player}, 1, 0.7)
+
+			loop 10 times:
+				if getChar({_player}) = "체드":
+					wait 1 tick
+				else:
+					exit
+			playSound("entity.vex.charge", {_player}, 1.5, 1.3)
+			playSound("entity.vex.ambient", {_player}, 1.5, 1.7)
+			playSound("entity.vex.ambient", {_player}, 1.5, 1.6)
+			playSound("entity.vex.ambient", {_player}, 1.5, 1.5)
+			playSound("entity.enderdragon.flap", {_player}, 1.5, 1.4)
+
+			while distance between {_ploc} and {_loc} < skill({_player}, "3::사거리"):
+				if getChar({_player}) = "체드":
+					add 1 to {_i}
+					delete {_targets::*}
+					delete {_pass}
+					if distance between {_ploc} and {_loc} > 2:
+						loop nearEnemys({_player}, {_loc}, skill({_player}, "3::범위")):
+							if isLiving(loop-entity) is true:
+								if {_targets::%loop-entity%} is not set:
+									set {_targets::%loop-entity%} to loop-entity
+									체드_3_발동({_player}, loop-entity)
+
+					set {_loc} to {_loc}~{_dir}
+					if mod({_i}, 10) = 0:
+						particleRGB({_loc}, 2.5, 1.5, 2.5, 120, 94, 160, 15)
+						particle("critmagic", {_loc}, 0.320, 0.320, 0.320, 0, 20)
+						particle("critmagic", location -0.6 forwards location -0.5 up {_loc}, 0.20, 0.120, 0.20, 0, 8)
+						particle("critmagic", location -1.2 forwards location -0.7 up {_loc}, 0.160, 0.080, 0.160, 0, 8)
+						particle("critmagic", location -1.8 forwards location -0.9 up {_loc}, 0.120, 0.040, 0.120, 0, 8)
+						particle("critmagic", location 0.8 forwards location 0.4 up {_loc}, 0.10, 0.160, 0.10, 0, 8)
+						particle("critmagic", location 1 forwards location 0.6 up {_loc}, 0.10, 0.160, 0.10, 0, 8)
+						particle("critmagic", location 1.4 forwards location 0.8 up {_loc}, 0.175, 0.160, 0.175, 0, 8)
+						particle("critmagic", location 1.6 forwards location 0.8 up {_loc}, 0.240, 0.160, 0.240, 0, 8)
+						particle("critmagic", location 0.8 left location 0.3 up {_loc}, 0.10, 0.120, 0.10, 0, 8)
+						particle("critmagic", location 1.2 left location 0.5 up {_loc}, 0.120, 0.160, 0.120, 0, 8)
+						particle("critmagic", location 1.6 left location 0.7 up {_loc}, 0.120, 0.20, 0.120, 0, 8)
+						particle("critmagic", location 2 left location 1 up {_loc}, 0.120, 0.240, 0.120, 0, 8)
+						particle("critmagic", location 2.4 left location 1.4 up {_loc}, 0.120, 0.280, 0.120, 0, 8)
+						particle("critmagic", location 2.8 left location 1.7 up {_loc}, 0.120, 0.360, 0.120, 0, 8)
+						particle("critmagic", location -0.8 left location 0.3 up {_loc}, 0.10, 0.120, 0.10, 0, 8)
+						particle("critmagic", location -1.2 left location 0.5 up {_loc}, 0.120, 0.160, 0.120, 0, 8)
+						particle("critmagic", location -1.6 left location 0.7 up {_loc}, 0.120, 0.20, 0.120, 0, 8)
+						particle("critmagic", location -2 left location 1 up {_loc}, 0.120, 0.240, 0.120, 0, 8)
+						particle("critmagic", location -2.4 left location 1.4 up {_loc}, 0.120, 0.280, 0.120, 0, 8)
+						particle("critmagic", location -2.8 left location 1.7 up {_loc}, 0.120, 0.360, 0.120, 0, 8)
+					if mod({_i}/4, {_speed}/20) = 0:
+						playSound("new.entity.phantom.flap", {_loc}, 1, 1.3)
+						wait 1 tick
+				else:
+					exit
+function 체드_4_장판(player: player, loc: location):
+	set {_rloc} to location 0 up {_loc}
+
+	loop skill({_player}, "4::화염지속시간")*5 times:
+		if getChar({_player}) = "체드":
+			loop 10 times:
+				if isNonSolid(location 0.1 down {_rloc}) is true:
+					set {_rloc} to location 0.1 down {_rloc}
+			if mod(loop-number, 2) = 0:
+				playSound("block.fire.ambient", {_rloc}, 1.5, random number between 0.6 to 0.8)
+			particle("flame", location 0.1 up {_rloc}, 4, 0, 4, 0, 50)
+			particle("lava", location 0.1 up {_rloc}, 4, 0, 4, 0, 10)
+			particle("smokelarge", location 0.1 up {_rloc}, 4, 0, 4, 0, 20)
+
+			loop nearEnemys({_player}, {_rloc}, skill({_player}, "4::폭발범위")):
+				if difference between y-coord of {_rloc} and y-coord of loop-entity <= 1.5:
+					if canPass(location 0.5 up {_rloc}, loop-entity's head) is true:
+						burn({_player}, loop-entity, skill({_player}, "4::초당화염피해량"), 0.5, "4", false)
+			wait 4 tick
+function 체드_4_이펙트(player: player):
+	loop 5 times:
+		add 1 to {_i}
+		set {_ploc} to location of {_player}'s head
+		set {_loc::%{_i}%} to location 2 forwards {_ploc}
+		set {_axis} to getRollAxis({_loc::%{_i}%})
+		set {_dir::%{_i}%} to vMul(getPitchAxis({_loc::%{_i}%}), 0.12)
+		rotate {_dir::%{_i}%} around {_axis} by 90+(360/5*(loop-number-1)) degrees
+	loop 5 times:
+		add 1 to {_i}
+		set {_ploc} to location of {_player}'s head
+		set {_loc::%{_i}%} to location 2 forwards {_ploc}
+		set {_axis} to getRollAxis({_loc::%{_i}%})
+		set {_dir::%{_i}%} to vMul(getPitchAxis({_loc::%{_i}%}), 0.12)
+		rotate {_dir::%{_i}%} around {_axis} by 90+(360/5*(loop-number-1)) degrees
+		set {_loc::%{_i}%} to {_loc::%{_i}%}~vMul({_dir::%{_i}%}, 8)
+	set {_rloc} to location 2 forwards {_ploc}
+	set {_i} to 0
+
+	loop 35 times:
+		if getChar({_player}) = "체드":
+			add 1 to {_i}
+			set {_j} to 0
+
+			loop 10 times:
+				add 1 to {_j}
+				set {_loc} to {_loc::%{_j}%}
+				set {_dir} to {_dir::%{_j}%}
+				if {_i} < 15:
+					if {_j} <= 5:
+						rotate {_dir::%{_j}%} around {_axis} by -8 degrees
+					else:
+						rotate {_dir::%{_j}%} around {_axis} by 8 degrees
+				else:
+					if {_j} <= 5:
+						rotate {_dir::%{_j}%} around {_axis} by 10 degrees
+					else:
+						rotate {_dir::%{_j}%} around {_axis} by -10 degrees
+				set {_loc::%{_j}%} to {_loc}~{_dir}
+				set {_x} to x of {_dir}
+				set {_y} to y of {_dir}
+				set {_z} to z of {_dir}
+				if {_i} < 15:
+					particle("flame", {_loc::%{_j}%}, {_x}, {_y}, {_z}, 0.2+{_i}*0.06, 0)
+					particle("lavadrip", {_loc::%{_j}%}, 0, 0, 0, 0, 1)
+				else:
+					particle("flame", location ({_i}-15)*0.25 forwards {_loc::%{_j}%}, {_x}, {_y}, {_z}, 1.5, 0)
+					particle("flame", location ({_i}-15)*0.25 forwards {_loc::%{_j}%}, {_x}, {_y}, {_z}, 1, 0)
+					particle("lavadrip", location ({_i}-15)*0.25 forwards {_loc::%{_j}%}, 0, 0, 0, 0, 1)
+			wait 1 tick
+function 체드_4(player: player):
+	setSkillDuration({_player}, 3, -1)
+	setItemCooldown({_player}, 15 ticks, true)
+	useUlt({_player})
+	set slot 21 of {_player} to air
+	set {_ploc} to location of {_player}
+
+	loop 15 times:
+		if getChar({_player}) = "체드":
+			setCooldown("%{_player}'s id%-nosprint", 2 ticks)
+			setCooldown("%{_player}'s id%-nojump", 2 ticks)
+			particleRGB(location 1 up {_player}, 1, 1, 1, 220, 40, 0, 4)
+			if loop-number = 7:
+				playSound("entity.evocation_illager.cast_spell", {_player}, 2, 0.8)
+			wait 1 tick
+			if isStunned({_player}) is true:
+				set {_exit} to true
+				exit loop
+
+	if getChar({_player}) = "체드":
+		setSkillCooldown({_player}, 3, -1)
+		set slot 21 of {_player} to arrow
+		if {_exit} is not set:
+			set {_ploc} to location of {_player}'s head
+			set {_loc} to location 0.4 down {_ploc}
+			set pitch of {_loc} to 0
+			set {_dir} to getLineOfSight({_player})
+			set {_speed} to 20
+			체드_4_이펙트({_player})
+			playSound("entity.evocation_illager.prepare_summon", {_player}, 4, 0.8)
+			playSound("block.enchantment_table.use", {_player}, 3, 0.6)
+			playSound("block.enchantment_table.use", {_player}, 3, 0.7)
+			playSound("block.enchantment_table.use", {_player}, 3, 0.8)
+
+			loop 20 times:
+				if getChar({_player}) = "체드":
+					wait 1 tick
+				else:
+					exit
+			playSound("new.entity.phantom.death", {_player}, 4, 0.7)
+			playSound("new.entity.phantom.death", {_player}, 4, 0.7)
+			playSound("entity.ghast.warn", {_player}, 4, 0)
+			playSound("entity.wither.shoot", {_player}, 4, 0)
+
+			while distance between {_ploc} and {_loc} < skill({_player}, "4::사거리"):
+				if getChar({_player}) = "체드":
+					add 1 to {_i}
+
+					if distance between {_ploc} and {_loc} > 2:
+						if {_target} is not set:
+							loop nearEnemys({_player}, {_loc}, skill({_player}, "4::범위")):
+								if isLiving(loop-entity) is true:
+									set {_target} to loop-entity
+									exit loop
+						else:
+							add 1 to {_timer}
+						if {_timer} > 20:
+							playSound("entity.generic.explode", {_loc}, 5, 0.7)
+							playSound("entity.ghast.shoot", {_loc}, 5, 0.6)
+							playSound("entity.ghast.shoot", {_loc}, 5, 0.8)
+							playSound("item.totem.use", {_loc}, 5, 1.4)
+							playSound("random.explosion_reverb", {_loc}, 7, 0.6)
+							particle("explosionhuge", {_loc}, 0, 0, 0, 0, 1)
+							particle("smoke", {_loc}, 0.4, 0.4, 0.4, 0.4, 600)
+							particle("smokelarge", {_loc}, 0.5, 0.5, 0.5, 0.2, 400)
+							particle("lava", {_loc}, 3, 3, 3, 0, 150)
+							particle("flame", {_loc}, 0, 0, 0, 0.25, 400)
+							체드_4_장판({_player}, {_loc})
+							if distance between location 1 up {_player} and {_loc} < skill({_player}, "4::범위"):
+								set {_dmg} to skill({_player}, "4::피해량")
+								set {_dmg} to getDistantDamage({_dmg}, 2.5, distance between {_player}'s head and {_loc})
+								set {_push} to getDistantDamage(1.5, 3, distance between {_player}'s head and {_loc})
+								damage({_player}, {_player}, {_dmg}, {_player}, "normal-4", false, false)
+								knockback({_player}, getLine(location 1.5 down {_loc}, {_player}, {_push}))
+							loop nearEnemys({_player}, {_loc}, skill({_player}, "4::범위")):
+								set {_dmg} to skill({_player}, "4::피해량")
+								set {_dmg} to getDistantDamage({_dmg}, 2.5, distance between loop-entity's head and {_loc})
+								set {_push} to getDistantDamage(1.5, 3, distance between loop-entity's head and {_loc})
+								damage({_player}, loop-entity, {_dmg}, loop-entity, "normal-4", false, false)
+								knockback(loop-entity, getLine(location 1.5 down {_loc}, loop-entity, {_push}))
+							exit loop
+
+					set {_loc} to {_loc}~{_dir}
+					if mod({_i}, 4) = 0:
+						particle("lava", location 1.6 forwards location 0.9 up {_loc}, 0.05, 0.05, 0.05, 1, 1)
+						# particle("lava", location 0.8 left location 0.5 up {_loc}, 0.05, 0.05, 0.05, 1, 1)
+						# particle("lava", location 1.2 left location 0.7 up {_loc}, 0.05, 0.05, 0.05, 1, 1)
+						# particle("lava", location 1.6 left location 0.9 up {_loc}, 0.05, 0.05, 0.05, 1, 1)
+						# particle("lava", location 2.2 left location 1.3 up {_loc}, 0.05, 0.05, 0.05, 1, 1)
+						particle("lava", location 2.8 left location 1.8 up {_loc}, 0.05, 0.05, 0.05, 1, 1)
+						particle("flame", location 2.8 left location 1.7 up {_loc}, 0, 0, 0, 0.02, 1)
+						# particle("lava", location -0.8 left location 0.5 up {_loc}, 0.05, 0.05, 0.05, 1, 1)
+						# particle("lava", location -1.2 left location 0.7 up {_loc}, 0.05, 0.05, 0.05, 1, 1)
+						# particle("lava", location -1.6 left location 0.9 up {_loc}, 0.05, 0.05, 0.05, 1, 1)
+						# particle("lava", location -2.2 left location 1.3 up {_loc}, 0.05, 0.05, 0.05, 1, 1)
+						particle("lava", location -2.8 left location 1.8 up {_loc}, 0.05, 0.05, 0.05, 1, 1)
+						particle("flame", location -2.8 left location 1.7 up {_loc}, 0, 0, 0, 0.02, 1)
+					if mod({_i}, 10) = 0:
+						# particle("flame", {_loc}, 2.2, 1.3, 2.2, 0.05, 12)
+						# particle("lava", {_loc}, 0.5, 0.5, 0.5, 1, 4)
+						# particle("flame", {_loc}, 0.3, 0.3, 0.3, 0, 16)
+						# particle("flame", location -0.6 forwards location -0.5 up {_loc}, 0.25, 0.15, 0.25, 0, 8)
+						# particle("flame", location -1.2 forwards location -0.7 up {_loc}, 0.2, 0.1, 0.2, 0, 8)
+						# particle("flame", location -1.8 forwards location -0.9 up {_loc}, 0.15, 0.05, 0.15, 0, 8)
+						# particle("flame", location 0.8 forwards location 0.4 up {_loc}, 0.125, 0.2, 0.125, 0, 8)
+						# particle("flame", location 1 forwards location 0.6 up {_loc}, 0.125, 0.2, 0.125, 0, 8)
+						# particle("flame", location 1.4 forwards location 0.8 up {_loc}, 0.175, 0.2, 0.175, 0, 8)
+						# particle("flame", location 1.6 forwards location 0.8 up {_loc}, 0.3, 0.2, 0.3, 0, 8)
+						# particle("flame", location 0.8 left location 0.3 up {_loc}, 0.125, 0.15, 0.125, 0, 8)
+						# particle("flame", location 1.2 left location 0.5 up {_loc}, 0.15, 0.2, 0.15, 0, 8)
+						# particle("flame", location 1.6 left location 0.7 up {_loc}, 0.15, 0.25, 0.15, 0, 8)
+						# particle("flame", location 2 left location 1 up {_loc}, 0.15, 0.3, 0.15, 0, 8)
+						# particle("flame", location 2.4 left location 1.4 up {_loc}, 0.15, 0.35, 0.15, 0, 8)
+						# particle("flame", location 2.8 left location 1.7 up {_loc}, 0.15, 0.45, 0.15, 0, 8)
+						# particle("flame", location -0.8 left location 0.3 up {_loc}, 0.125, 0.15, 0.125, 0, 8)
+						# particle("flame", location -1.2 left location 0.5 up {_loc}, 0.15, 0.2, 0.15, 0, 8)
+						# particle("flame", location -1.6 left location 0.7 up {_loc}, 0.15, 0.25, 0.15, 0, 8)
+						# particle("flame", location -2 left location 1 up {_loc}, 0.15, 0.3, 0.15, 0, 8)
+						# particle("flame", location -2.4 left location 1.4 up {_loc}, 0.15, 0.35, 0.15, 0, 8)
+						# particle("flame", location -2.8 left location 1.7 up {_loc}, 0.15, 0.45, 0.15, 0, 8)
+
+						particleRGB({_loc}, 0.560, 0.560, 0.560, 255, 50, 0, 16)
+						particleRGB(location -0.6 forwards location -0.5 up {_loc}, 0.350, 0.210, 0.350, 255, 50, 0, 8)
+						particleRGB(location -1.2 forwards location -0.7 up {_loc}, 0.280, 0.140, 0.280, 255, 50, 0, 8)
+						particleRGB(location -1.8 forwards location -0.9 up {_loc}, 0.210, 0.070, 0.210, 255, 50, 0, 8)
+						particleRGB(location 0.8 forwards location 0.4 up {_loc}, 0.1750, 0.280, 0.1750, 255, 50, 0, 8)
+						particleRGB(location 1 forwards location 0.6 up {_loc}, 0.1750, 0.280, 0.1750, 255, 50, 0, 8)
+						particleRGB(location 1.4 forwards location 0.8 up {_loc}, 0.250, 0.280, 0.250, 255, 50, 0, 8)
+						particleRGB(location 1.6 forwards location 0.8 up {_loc}, 0.420, 0.280, 0.420, 255, 50, 0, 8)
+						particleRGB(location 0.8 left location 0.3 up {_loc}, 0.1750, 0.210, 0.1750, 255, 50, 0, 8)
+						particleRGB(location 1.2 left location 0.5 up {_loc}, 0.210, 0.280, 0.210, 255, 50, 0, 8)
+						particleRGB(location 1.6 left location 0.7 up {_loc}, 0.210, 0.350, 0.210, 255, 50, 0, 8)
+						particleRGB(location 2 left location 1 up {_loc}, 0.210, 0.420, 0.210, 255, 50, 0, 8)
+						particleRGB(location 2.4 left location 1.4 up {_loc}, 0.210, 0.490, 0.210, 255, 50, 0, 8)
+						particleRGB(location 2.8 left location 1.7 up {_loc}, 0.210, 0.630, 0.210, 255, 50, 0, 8)
+						particleRGB(location -0.8 left location 0.3 up {_loc}, 0.1750, 0.210, 0.1750, 255, 50, 0, 8)
+						particleRGB(location -1.2 left location 0.5 up {_loc}, 0.210, 0.280, 0.210, 255, 50, 0, 8)
+						particleRGB(location -1.6 left location 0.7 up {_loc}, 0.210, 0.350, 0.210, 255, 50, 0, 8)
+						particleRGB(location -2 left location 1 up {_loc}, 0.210, 0.420, 0.210, 255, 50, 0, 8)
+						particleRGB(location -2.4 left location 1.4 up {_loc}, 0.210, 0.490, 0.210, 255, 50, 0, 8)
+						particleRGB(location -2.8 left location 1.7 up {_loc}, 0.210, 0.630, 0.210, 255, 50, 0, 8)
+
+						# particleBlock(fire, {_loc}, 0.3, 0.3, 0.3, 0, 16)
+						# particleBlock(fire, location -0.6 forwards location -0.5 up {_loc}, 0.25, 0.15, 0.25, 0, 8)
+						# particleBlock(fire, location -1.2 forwards location -0.7 up {_loc}, 0.2, 0.1, 0.2, 0, 8)
+						# particleBlock(fire, location -1.8 forwards location -0.9 up {_loc}, 0.15, 0.05, 0.15, 0, 8)
+						# particleBlock(fire, location 0.8 forwards location 0.4 up {_loc}, 0.125, 0.2, 0.125, 0, 8)
+						# particleBlock(fire, location 1 forwards location 0.6 up {_loc}, 0.125, 0.2, 0.125, 0, 8)
+						# particleBlock(fire, location 1.4 forwards location 0.8 up {_loc}, 0.175, 0.2, 0.175, 0, 8)
+						# particleBlock(fire, location 1.6 forwards location 0.8 up {_loc}, 0.3, 0.2, 0.3, 0, 8)
+						# particleBlock(fire, location 0.8 left location 0.3 up {_loc}, 0.125, 0.15, 0.125, 0, 8)
+						# particleBlock(fire, location 1.2 left location 0.5 up {_loc}, 0.15, 0.2, 0.15, 0, 8)
+						# particleBlock(fire, location 1.6 left location 0.7 up {_loc}, 0.15, 0.25, 0.15, 0, 8)
+						# particleBlock(fire, location 2 left location 1 up {_loc}, 0.15, 0.3, 0.15, 0, 8)
+						# particleBlock(fire, location 2.4 left location 1.4 up {_loc}, 0.15, 0.35, 0.15, 0, 8)
+						# particleBlock(fire, location 2.8 left location 1.7 up {_loc}, 0.15, 0.45, 0.15, 0, 8)
+						# particleBlock(fire, location -0.8 left location 0.3 up {_loc}, 0.125, 0.15, 0.125, 0, 8)
+						# particleBlock(fire, location -1.2 left location 0.5 up {_loc}, 0.15, 0.2, 0.15, 0, 8)
+						# particleBlock(fire, location -1.6 left location 0.7 up {_loc}, 0.15, 0.25, 0.15, 0, 8)
+						# particleBlock(fire, location -2 left location 1 up {_loc}, 0.15, 0.3, 0.15, 0, 8)
+						# particleBlock(fire, location -2.4 left location 1.4 up {_loc}, 0.15, 0.35, 0.15, 0, 8)
+						# particleBlock(fire, location -2.8 left location 1.7 up {_loc}, 0.15, 0.45, 0.15, 0, 8)
+					if mod({_i}/4, {_speed}/20) = 0:
+						playSound("entity.enderdragon.flap", {_loc}, 2, 1.2)
+						wait 1 tick
+				else:
+					exit

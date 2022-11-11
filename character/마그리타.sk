@@ -1,0 +1,219 @@
+on script load:
+	set {마그리타::체력} to 1200
+	set {마그리타::이동속도} to 1.0
+	set {마그리타::히트박스} to 1.0
+
+	set {마그리타::평::피해량} to 50
+	set {마그리타::평::탄환수} to 8
+	set {마그리타::평::사거리} to 21
+	set {마그리타::평::피해감소거리} to 7
+
+	set {마그리타::1::쿨타임} to 11
+	set {마그리타::1::직격피해량} to 50
+	set {마그리타::1::폭발피해량} to 200
+	set {마그리타::1::초당화염피해량} to 130
+	set {마그리타::1::화염지속시간} to 3.5
+	set {마그리타::1::범위} to 4
+
+	set {마그리타::2::쿨타임} to 10
+	set {마그리타::2::초당화염피해량} to 100
+
+	set {마그리타::4::충전량} to 10000
+	set {마그리타::4::피해량} to 50
+	set {마그리타::4::초당화염피해량} to 50
+	
+	set {마그리타::특성::이름1} to "철갑탄"
+	set {마그리타::특성::1} to "||&f적의 최대 체력에 비례한 &e⬆&c⚔ 추가 피해&f를 입힙니다.||&f최대 체력이 자신보다 낮은 적에게는 적용되지 않습니다.||||&e⬆&c⚔ &f×(적의 최대 체력/자신의 최대 체력)"
+	set {마그리타::액티브::이름1} to "태초의 불꽃"
+	set {마그리타::액티브::1} to "||&f특수 폭탄을 던져 &c⚔ 광역 피해&f를 입히고 &5⚠ 불&f태웁니다.||&f방벽에는 큰 &e⬆&c⚔ 추가 피해&f를 입힙니다.||||&c⚔ &f200||&e⬆&c⚔ &f×8.0||&c✸ &f4m||&5⚠ &6⌛ &f3.5초||&5⚠ &c⚔ &f초당 130||&f⟳ &f11초||||&7&l[1] &f사용"
+	set {마그리타::액티브::이름2} to "불꽃의 그림자"
+	set {마그리타::액티브::2} to "||&6⌛ 지속시간&f동안 &e⬆&b➠ 속도&f가 빨라지고 무적이 되며, 지나간 길에||&5⚠ 화염 지대&f를 생성합니다.||||&6⌛ &f1초||&e⬆&b➠ &f60％||&5⚠&6⌛ &f5초||&5⚠&c⚔ &f초당 100||&5⚠&c✸ &f2.5m||&f⟳ &f10초||||&7&l[2] [우클릭] &f사용"
+	set {마그리타::액티브::이름4} to "무차별 방화"
+	set {마그리타::액티브::4} to "||&6⌛ 지속시간&f동안 기본무기를 난사하여 강력한 &c⚔ 피해&f를 입히고||&f적을 &5⚠ 불&f태웁니다.||||&6⌛ &f4초||&c⚔ &f50 (8m) ~ 25 (16m) ~ 0 (24m) [×4]||&5⚠&6⌛ &f8초||&5⚠&c⚔ &f초당 50||&f⚡ &f10000||||&7&l[4] &f사용"
+function 마그리타_평_반동(player: player):
+	set {_hrecoil} to random number between -2.6 to 2.6
+	set {_vrecoil} to -10
+	loop 3 times:
+		if loop-number = 1:
+			set {_hr} to {_hrecoil}*3
+			set {_vr} to {_vrecoil}*3
+		if loop-number = 2:
+			set {_hr} to {_hrecoil}*2
+			set {_vr} to {_vrecoil}*2
+		if loop-number = 3:
+			set {_hr} to {_hrecoil}
+			set {_vr} to {_vrecoil}
+		changeSight({_player}, {_hr}/6, {_vr}/6)
+		wait 1 tick
+function 마그리타_평_효과음(player: player):
+	playSound("random.gun2.xm1014_1", {_player}, 3, 1)
+	playSound("random.gun2.xm1014_1", {_player}, 3, 0.8)
+	playSound("random.gun2.spas_12_1", {_player}, 3, 1)
+	playSound("random.gun_reverb", {_player}, 5, 0.9)
+	playSound("random.gun_reverb", {_player}, 5, 0.8)
+	wait 8 tick
+	playSound("entity.zombie_horse.death", {_player}, 1, random number between 0.95 to 1)
+function 마그리타_평_발동(player: player, no: integer):
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location of {_ploc}
+	set {_dir} to vSpread(getLineOfSight({_player}), 8)
+
+	while distance between {_ploc} and {_loc} < skill({_player}, "평::사거리"):
+		add 1 to {_i}
+		if block at ({_loc}~{_dir}) is not air:
+			if isNonSolid({_loc}~{_dir}) is false:
+				set {__loc} to location of {_loc}
+				set {_hitloc} to {_loc}~{_dir}
+				loop 4 times:
+					if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+						set {__loc} to {__loc}~vMul({_dir}, 0.2)
+				if {_no} = 1:
+					bulletHit({__loc}, block at {_hitloc}, true)
+				else:
+					bulletHit({__loc}, block at {_hitloc}, false)
+				exit loop
+
+		if distance between {_ploc} and {_loc} > 0.5:
+			set {_target} to nearEnemy({_player}, {_loc}, {Skill::HITS_HITBOX})
+			if {_target} is set:
+				exit loop
+
+		set {_loc} to {_loc}~{_dir}
+		if mod({_i}, 8) = 0:
+			particle("crit", location 0.2 right location 0.2 down {_loc}, 0, 0, 0, 0, 1)
+
+	if {_target} is set:
+		set {_dmg} to getDistantDamage(skill({_player}, "평::피해량"), skill({_player}, "평::피해감소거리"), distance between {_player}'s head and {_target}'s head, false)
+		if isUsingSkill({_player}, 3) is true:
+			set {_dmg} to skill({_player}, "4::피해량")
+			set {_type} to "normal-4"
+		else:
+			set {_type} to "normal-평"
+		damage({_player}, {_target}, {_dmg}, {_loc}~{_dir}, "%{_type}%", "%{_headshot}%" parsed as boolean)
+function 마그리타_평(player: player):
+	setItemCooldown({_player}, 11 ticks)
+	마그리타_평_효과음({_player})
+	마그리타_평_반동({_player})
+
+	loop skill({_player}, "평::탄환수") times:
+		마그리타_평_발동({_player}, loop-number)
+function 마그리타_1_폭발(player: player, target: object):
+	if {_target} is an entity:
+		set {_loc} to location (hitbox length of {_target}/2) up {_target}
+		sendTitle({_player}, "&b&l부착!", "", 10 ticks, 0 ticks, 5 ticks)
+	else:
+		set {_loc} to location 0.2 up {_target}
+
+	playSound("entity.player.hurt", {_loc}, 1, 0)
+	if {_target} is a player:
+		sendTitle({_target}, "&c&l부착당함!", "", 10 ticks, 0 ticks, 5 ticks)
+
+	loop 18 times:
+		if getChar({_player}) = "마그리타":
+			wait 1 tick
+			if {_target} is an entity:
+				set {_loc} to location (hitbox length of {_target}/2) up location 0.05 left {_target}
+				if {_target} is a player:
+					if getMetadata({_target}, "char") is not set:
+						exit
+				if {_target} is dead:
+					# todo
+			if mod(loop-number, 2) = 0:
+				playSound("entity.experience_orb.pickup", {_loc}, 1.5, 1.8)
+			particleRGB({_loc}, 0.15, 0.15, 0.15, 220, 30, 15, 5)
+			particle("smoke", {_loc}, 0.15, 0.15, 0.15, 0, 4)
+		else:
+			exit
+
+	playSound("entity.generic.explode", {_loc}, 4, 0.8)
+	playSound("block.lava.extinguish", {_loc}, 4, 0.8)
+	playSound("block.lava.extinguish", {_loc}, 4, 0.5)
+	playSound("entity.firework.large_blast", {_loc}, 4, 0.6)
+	playSound("random.explosion_reverb", {_loc}, 6, 1.2)
+	particle("explosionlarge", {_loc}, 0, 0, 0, 0, 1)
+	particle("flame", {_loc},  0.2, 0.2, 0.2, 0.15, 250)
+	particle("lava", {_loc},  0.8, 0.8, 0.8, 1, 100)
+	particle("smoke", {_loc}, 0.2, 0.2, 0.2, 0.3, 150)
+	particle("smokelarge", {_loc}, 0.3, 0.3, 0.3, 0.1, 80)
+
+	if distance between location 1 up {_player} and {_loc} < skill({_player}, "1::범위"):
+		if canPass({_loc}, location of {_player}'s head) is true:
+			if canPassShield({_player}, {_loc}, location of {_player}'s head) is true:
+				set {_dmg} to skill({_player}, "1::폭발피해량")
+				set {_dmg} to getDistantDamage({_dmg}, 2, distance between {_player}'s head and {_loc})
+				set {_push} to getDistantDamage(0.45, 2.5, distance between {_player}'s head and {_loc})
+				set {_burn} to getDistantDamage(skill({_player}, "1::초당화염피해량"), 2, distance between {_player}'s head and {_loc})
+				damage({_player}, {_player}, {_dmg}, {_player}, "normal-평1")
+				knockback({_player}, getLine(location 1 down {_loc}, {_player}, {_push}))
+				burn({_player}, {_player}, {_burn}, skill({_player}, "1::화염지속시간"), "1")
+	loop nearEnemys({_player}, {_loc}, skill({_player}, "1::범위")):
+		if canPass({_loc}, location of loop-entity's head) is true:
+			if canPassShield({_player}, {_loc}, location of loop-entity's head) is true:
+				set {_dmg} to skill({_player}, "1::폭발피해량")
+				set {_dmg} to getDistantDamage({_dmg}, 2, distance between loop-entity's head and {_loc})
+				set {_push} to getDistantDamage(0.45, 2.5, distance between loop-entity's head and {_loc})
+				set {_burn} to getDistantDamage(skill({_player}, "1::초당화염피해량"), 2, distance between loop-entity's head and {_loc})
+				damage({_player}, loop-entity, {_dmg}, loop-entity, "normal-평1")
+				knockback(loop-entity, getLine(location 1 down {_loc}, loop-entity, {_push}))
+				burn({_player}, loop-entity, {_burn}, skill({_player}, "1::화염지속시간"), "1")
+function 마그리타_1(player: player):
+	setSkillDuration({_player}, 0, -1)
+	setItemCooldown({_player}, 6 ticks, true)
+	playSound("entity.cat.purreow", {_player}, 0.5, 1.6)
+
+	loop 6 times:
+		if getChar({_player}) = "마그리타":
+			wait 1 tick
+			if isStunned({_player}) is true:
+				set {_exit} to true
+				exit loop
+
+	if getChar({_player}) = "마그리타":
+		setSkillCooldown({_player}, 0, rounded skill({_player}, "1::쿨타임"))
+		if {_exit} is not set:
+			playSound("entity.witch.throw", {_player}, 1, 0.7)
+			set {_ploc} to location of {_player}'s head
+			set {_loc} to location 0.2 right location 0.4 down {_ploc}
+			set {_dir} to getLineOfSight({_player})
+			set {_speed} to 20
+			set {_hit} to 0
+
+			while distance between {_ploc} and {_loc} < {Skill::MAX_RANGE}:
+				if getChar({_player}) = "마그리타":
+					add 1 to {_i}
+
+					if isNonSolid({_loc}~{_dir}) is false:
+						set {__loc} to location of {_loc}
+						set {_hitloc} to {_loc}~{_dir}
+						loop 4 times:
+							if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+								set {__loc} to {__loc}~vMul({_dir}, 0.2)
+							else:
+								exit loop
+						playSound("entity.player.hurt", {__loc}, 1, 0)
+						meleeHit({__loc}, block at {_hitloc})
+						exit loop
+
+					if distance between {_ploc} and {_loc} > 0.5:
+						set {_target} to nearEnemy({_player}, {_loc}, {Skill::PROJ_HITBOX})
+						if {_target} is set:
+							playSound("entity.player.hurt", {_target}, 1, 0)
+							exit loop
+
+					set {_loc} to {_loc}~{_dir}
+					if vector length of {_dir} > 0.1:
+						add -0.00026 to vector length of {_dir}
+					if mod({_i}, 4) = 0:
+						particleRGB({_loc}, 0.1, 0.1, 0.1, 200, 90, 35, 3)
+					if mod({_i}/4, {_speed}/20) = 0:
+						if isNonSolid(location 0.1 down {_loc}) is true:
+							subtract 0.055/(({_speed}*4)/20) from y of {_dir}
+						wait 1 tick
+				else:
+					exit
+			
+			if {_target} is set:
+				damage({_player}, {_target}, skill({_player}, "1::직격피해량"), {_loc}, "normal-1")
+				마그리타_1_폭발({_player}, {_target})
+			else:
+				마그리타_1_폭발({_player}, {_loc})

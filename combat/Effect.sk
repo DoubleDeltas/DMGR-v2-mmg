@@ -1,0 +1,206 @@
+#!! 이동기
+function push(entity: entity, dir: vector, reset: boolean=false):
+	if getCooldown("%{_entity}'s id%-leash") = 0 ticks:
+		if getCooldown("%{_entity}'s id%-knockback") = 0 ticks:
+			if {_reset} is true:
+				set velocity of {_entity} to vector 0, 0, 0
+				push {_entity} {_dir}
+			else:
+				push {_entity} {_dir}
+#!! 넉백
+function knockback(entity: entity, dir: vector, reset: boolean=false):
+	setCooldown("%{_entity}'s id%-knockback", 3 ticks)
+
+	if {_reset} is true:
+		set velocity of {_entity} to vector 0, 0, 0
+		push {_entity} {_dir}
+	else:
+		push {_entity} {_dir}
+#!! 청각 차단
+function nohear(victim: entity, time: number, beep: boolean=false):
+	if isLiving({_victim}) is true:
+		if {_victim} is a player:
+			set {_bonus} to 0
+			if getChar({_victim}) = "퀘이커":
+				subtract 40 from {_bonus}
+			if {_bonus} < -100:
+				set {_bonus} to -100
+
+			set {_time} to "%{_time}*(100+{_bonus})/100% seconds" parsed as timespan
+
+			if getCooldown("%{_victim}'s id%-nohear") = 0 ticks:
+				setCooldown("%{_victim}'s id%-nohear", {_time})
+
+				stop sound "" for {_victim}
+				set {_max} to {_time} to ticks
+
+				while getCooldown("%{_victim}'s id%-nohear") > 0 ticks:
+					add 1 to {_i}
+					wait 1 tick
+					if {_beep} is true:
+						if {_i} = 1:
+							execute console command "playsound random.flashbang master %{_victim}% 0 0 0 0.12 0.95 0.12"
+			else:
+				if getCooldown("%{_victim}'s id%-nohear") to ticks < {_time} to ticks:
+					setCooldown("%{_victim}'s id%-nohear", {_time})
+#!! 빙결
+function freeze(attacker: entity, victim: entity, time: number, score: number=0):
+	if isLiving({_victim}) is true:
+		if getCooldown("%{_victim}'s id%-freeze") = 0 ticks:
+			set {_bonus} to 0
+			if getChar({_victim}) = "퀘이커":
+				subtract 40 from {_bonus}
+			if {_bonus} < -100:
+				set {_bonus} to -100
+
+			set {_time} to "%{_time}*(100+{_bonus})/100% seconds" parsed as timespan
+
+			if {_victim} is a player:
+				# ultBreak({_attacker}, {_victim})
+				setHotbarSlot({_victim}, 8)
+
+				if {_score} > 0:
+					if {_attacker} != {_victim}:
+						if {_attacker} is a player:
+							addScore({_attacker}, "적 얼림", {_score})
+
+			setCooldown("%{_victim}'s id%-freeze", {_time})
+			set {_max} to {_time} to ticks
+
+			while getCooldown("%{_victim}'s id%-freeze") > 0 ticks:
+				set {_cooldown} to getCooldown("%{_victim}'s id%-freeze") to ticks
+				sendTitle({_victim}, "&c&l얼어붙음!", getBar({_cooldown}, {_max}, "&c"), 2 ticks, 0 ticks, 10 ticks)
+				particleRGB(location (hitbox length of {_victim}/2) up {_victim}, 0.4, 0.8, 0.4, 120, 220, 240, 5)
+				wait 1 tick
+
+			resetMetadata({_victim}, "freeze")
+
+			if {_victim} is a player:
+				if {_victim}'s tool is not emerald:
+					setHotbarSlot({_victim}, 4)
+#!! 속박
+function leash(attacker: entity, victim: entity, time: number, score: number=0):
+	if isLiving({_victim}) is true:
+		set {_bonus} to 0
+		if getChar({_victim}) = "퀘이커":
+			subtract 40 from {_bonus}
+		if {_bonus} < -100:
+			set {_bonus} to -100
+
+		set {_time} to "%{_time}*(100+{_bonus})/100% seconds" parsed as timespan
+
+		if {_victim} is a player:
+			if {_score} > 0:
+				if {_attacker} != {_victim}:
+					if {_attacker} is a player:
+						addScore({_attacker}, "적 속박", {_score})
+
+		if getCooldown("%{_victim}'s id%-leash") = 0 ticks:
+			setCooldown("%{_victim}'s id%-leash", {_time})
+
+			set {_max} to {_time} to ticks
+
+			while getCooldown("%{_victim}'s id%-leash") > 0 ticks:
+				set {_cooldown} to getCooldown("%{_victim}'s id%-leash") to ticks
+				sendTitle({_victim}, "&c&l속박당함!", getBar({_cooldown}, {_max}, "&c"), 2 ticks, 0 ticks, 10 ticks)
+				wait 1 tick
+		else:
+			if getCooldown("%{_victim}'s id%-leash") to ticks < {_time} to ticks:
+				setCooldown("%{_victim}'s id%-leash", {_time})
+#!! 기절
+function stun(attacker: entity, victim: entity, time: number, score: number=0):
+	if isLiving({_victim}) is true:
+		set {_bonus} to 0
+		if getChar({_victim}) = "퀘이커":
+			subtract 40 from {_bonus}
+		if {_bonus} < -100:
+			set {_bonus} to -100
+
+		set {_time} to "%{_time}*(100+{_bonus})/100% seconds" parsed as timespan
+
+		if {_victim} is a player:
+			setHotbarSlot({_victim}, 8)
+
+			if {_score} > 0:
+				if {_attacker} != {_victim}:
+					if {_attacker} is a player:
+						addScore({_attacker}, "적 기절시킴", {_score})
+
+		if getCooldown("%{_victim}'s id%-stun") = 0 ticks:
+			setCooldown("%{_victim}'s id%-stun", {_time})
+
+			set {_max} to {_time} to ticks
+
+			while getCooldown("%{_victim}'s id%-stun") > 0 ticks:
+				set {_cooldown} to getCooldown("%{_victim}'s id%-stun") to ticks
+				sendTitle({_victim}, "&c&l기절함!", getBar({_cooldown}, {_max}, "&c"), 2 ticks, 0 ticks, 10 ticks)
+				wait 1 tick
+
+			if {_victim} is a player:
+				if {_victim}'s tool is not emerald:
+					setHotbarSlot({_victim}, 4)
+		else:
+			if getCooldown("%{_victim}'s id%-stun") to ticks < {_time} to ticks:
+				setCooldown("%{_victim}'s id%-stun", {_time})
+#!! 화염
+function burn(attacker: entity, victim: entity, damage: number, time: number, id: text, ult: boolean=true):
+	if getMetadata({_victim}, "shield") is not set:
+		set {_time} to "%{_time}% seconds" parsed as timespan
+		set {_char} to getChar({_attacker})
+
+		if getCooldown("%{_victim}'s id%-burn-%{_char}%-%{_id}%") = 0 ticks:
+			setCooldown("%{_victim}'s id%-burn-%{_char}%-%{_id}%", {_time})
+
+			while getCooldown("%{_victim}'s id%-burn-%{_char}%-%{_id}%") > 0 ticks:
+				add 1 to {_i}
+				set {_cooldown} to getCooldown("%{_victim}'s id%-burn-%{_char}%-%{_id}%") to ticks
+				ignite {_victim} for 0.3 seconds
+				if mod({_i}, 10) = 0:
+					if {_char} = "인페르노":
+						if {_id} = "평":
+							setCooldown("%{_victim}'s id%-debuff-인페르노-S1", 15 ticks)
+					damage({_attacker}, {_victim}, {_damage}/2, {_victim}, "burn-%{_id}%", false, {_ult})
+				wait 1 tick
+		else:
+			if getCooldown("%{_victim}'s id%-burn-%{_char}%-%{_id}%") to ticks < {_time} to ticks:
+				setCooldown("%{_victim}'s id%-burn-%{_char}%-%{_id}%", {_time})
+#!! 치유
+function heal(attacker: player, victim: entity, amount: number, score: number=0, ult: boolean=true):
+	set {_mode} to getMetadata({_attacker}, "game")
+
+	if getHealth({_victim}) < getMaxHealth({_victim}):
+
+		set {_bonus} to 0
+
+		if getCooldown("%{_victim}'s id%-debuff-인페르노-S1") > 0 ticks:
+			add -40 to {_bonus}
+
+		set {_amount} to {_amount}*(100+{_bonus})/100
+		heal {_victim} by {_amount}*0.01
+
+		if {_mode} is set:
+			addMetadata({_attacker}, "heal", {_amount})
+
+		if {_amount} > 100:
+			particle("heart", location (hitbox length of {_victim})+0.3 up {_victim}, 0.3, 0.1, 0.3, 0, ceil({_amount}*0.01))
+			if {_attacker} != {_victim}:
+				playSound("entity.zombie_villager.converted", {_victim}, 0.15+{_amount}*0.001, 1.35+({_victim}'s health/{_victim}'s max health)*0.2)
+			else:
+				playSoundPlayer("entity.zombie_villager.converted", {_victim}, 0.08+{_amount}*0.0007, 1.35+({_victim}'s health/{_victim}'s max health)*0.2)
+		else if chance of {_amount}%:
+			particle("heart", location (hitbox length of {_victim})+0.3 up {_victim}, 0.3, 0.1, 0.3, 0, 1)
+			if {_attacker} != {_victim}:
+				playSound("entity.zombie_villager.converted", {_victim}, 0.15+{_amount}*0.001, 1.35+({_victim}'s health/{_victim}'s max health)*0.2)
+			else:
+				playSoundPlayer("entity.zombie_villager.converted", {_victim}, 0.08+{_amount}*0.0007, 1.35+({_victim}'s health/{_victim}'s max health)*0.2)
+
+		if {_score} > 0:
+			if {_attacker} != {_victim}:
+				addScore({_attacker}, "치유", ({_amount}/getMaxHealth({_victim}))*{_score})
+			else:
+				addScore({_attacker}, "회복", {_score})
+
+		if {_ult} is true:
+			if {_victim} is a player:
+				if isUsingSkill({_attacker}, 3) is false:
+					addUlt({_attacker}, {_amount}/skill({_attacker}, "4::충전량"))

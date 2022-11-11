@@ -1,0 +1,58 @@
+
+# 관리자 채팅
+
+command /관리자채팅:
+	aliases: /관리자챗, /oc
+	trigger:
+		if {-%player%.opchat} is not set:
+			set {-%player%.opchat} to true
+			send "%{PREFIX}% &f관리자 채팅이 &a&l활성화 &f되었습니다."
+		else:
+			delete {-%player%.opchat}
+			send "%{PREFIX}% &f관리자 채팅이 &c&l비활성화 &f되었습니다."
+
+# 채팅청소
+
+command /채팅청소:
+	aliases: /청소, /chatclear, /cc
+	permission: admin
+	trigger:
+		loop 100 times:
+			broadcast ""
+
+# 전투원 선택
+
+command /선택 <player> <text> <text>:
+	aliases: /select
+	permission: admin
+	usage: /선택 <플레이어> <팀> <전투원명>
+	trigger:
+		if arg 2 is "red" or "blue" or "train" or "pvp":
+			if arg 3 is "아케이스" or "실리아" or "퀘이커" or "예거" or "니스" or "에토르" or "페르델" or "체드" or "인페르노" or "마그리타":
+				if arg 2 is "pvp":
+					set {_team} to "%random integer between 0 to 1000%"
+				else:
+					set {_team} to arg 2
+				if getChar(arg 1) is not set:
+					setChar(arg 1, arg 3)
+					setTeam(arg 1, {_team})
+					wait 1 tick
+					playerTick(arg 1)
+				else:
+					setChar(arg 1, arg 3)
+					setTeam(arg 1, {_team})
+
+# 전체지급
+
+command /전체지급:
+	permission: admin
+	trigger:
+		broadcast "&f"
+		broadcast "&b&l[ DVRST ] &e&n%player%&f님이 &b%name of player's tool% &3×%item amount of player's tool%&f을 전체지급 하였습니다."
+		broadcast "&f"
+		loop all players:
+			if loop-player's world is player's world:
+				if loop-player is not player:
+					give player's tool to loop-player
+			playSoundPlayer("entity.item.pickup", loop-player, 1000, 1)
+			playSoundPlayer("entity.experience_orb.pickup", loop-player, 1000, 1.2)

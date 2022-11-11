@@ -1,0 +1,86 @@
+import:
+	org.bukkit.attribute.Attribute
+
+#!! 체력
+function getHealth(entity: entity) :: number:
+	return {_entity}'s health*100
+function setHealth(entity: entity, amount: number) :: number:
+	set {_entity}'s health to {_amount}/100
+#!! 최대 체력
+function getMaxHealth(entity: entity) :: number:
+	return {_entity}'s max health*100
+function setMaxHealth(entity: entity, amount: number) :: number:
+	set {_entity}'s max health to {_amount}/100
+#!! 이동속도
+function getWalkspeed(entity: entity) :: number:
+	if {_entity} is a player:
+		return {_entity}'s walkspeed
+	else:
+		set {_speed} to {_entity}.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).getValue()
+		if {_speed} is set:
+			return {_speed}
+		return 0
+function setWalkspeed(entity: entity, speed: number):
+	if {_entity} is a player:
+		set {_entity}'s walkspeed to {_speed}
+	else:
+		{_entity}.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED).setBaseValue({_speed})
+#!! 데미지 이펙트
+function sendDamage(entity: entity):
+	set {_packet} to new play_server_entity_status packet
+	set int pnum 0 of {_packet} to {_entity}'s id
+	set byte pnum 0 of {_packet} to 2
+	send packet {_packet} to all players
+#!! 엔티티 타입
+function getMobType(entity: entity) :: text:
+	return metadata "mobType" of {_entity}
+#!! 게임 팀
+function getTeam(entity: entity) :: text:
+	return metadata "team" of {_entity}
+function setTeam(entity: entity, team: text):
+	set metadata "team" of {_entity} to {_team}
+#!! 피격 가능 여부 확인
+function isDamageable(entity: entity) :: boolean:
+	if {_entity} is an armor stand:
+		return false
+	if {_entity} is a player:
+		if gamemode of {_entity} is creative or spectator:
+			return false
+	else if metadata "mobType" of {_entity} is not set:
+		return false
+	return true
+#!! 근접무기 사용 여부 확인
+function isMeleeChar(entity: entity) :: boolean:
+	if {_entity} is a player:
+		if getChar({_entity}) = "퀘이커" or "실리아" or "니스":
+			return true
+	else:
+		return true
+	return false
+#!! 살아있는 몹 확인
+function isLiving(entity: entity) :: boolean:
+	if {_entity} is a player:
+		return true
+	else:
+		if getMetadata({_entity}, "living") is true:
+			return true
+		if name of {_entity} is "&7&lDummy":
+			return true
+		if {_entity}'s helmet is red wool:
+			return true
+		return false
+#!! 적 확인
+function isEnemy(attacker: entity, victim: entity) :: boolean:
+	if metadata "team" of {_attacker} = metadata "team" of {_victim}:
+		return false
+	if {_victim} is not a player:
+		if metadata "mobType" of {_victim} is not set:
+			return false
+	return true
+#!! 기절 확인
+function isStunned(entity: entity) :: boolean:
+	if getCooldown("%{_entity}'s id%-freeze") > 0 ticks:
+		return true
+	if getCooldown("%{_entity}'s id%-stun") > 0 ticks:
+		return true
+	return false

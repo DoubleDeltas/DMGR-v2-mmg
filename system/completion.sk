@@ -1,0 +1,28 @@
+on tab completer for "/귓":
+	add name of all players to {_arr::*}
+	if isIncludes(argument at 1, {_arr::*}) is false:
+		loop {_arr::*}:
+			add loop-value to completions
+on tab completer for "/전적":
+	add name of all players to {_arr::*}
+	if isIncludes(argument at 1, {_arr::*}) is false:
+		loop {_arr::*}:
+			add loop-value to completions
+on tab completer for "/차단":
+	add name of all players to {_arr::*}
+	add "목록", "list", "초기화", "clear" to {_arr::*}
+	if isIncludes(argument at 1, {_arr::*}) is false:
+		loop {_arr::*}:
+			add loop-value to completions
+on tab completer for "/선택":
+	add name of all players to {_arr1::*}
+	if isIncludes(argument at 1, {_arr1::*}) is false:
+		loop {_arr1::*}:
+			add loop-value to completions
+		exit
+	if argument at 1 is set:
+		add "red", "blue", "train", "pvp" to {_arr2::*}
+		if isIncludes(argument at 2, {_arr2::*}) is false:
+			loop {_arr2::*}:
+				add loop-value to completions
+			exit

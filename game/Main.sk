@@ -1,0 +1,439 @@
+import:
+	ch.njol.skript.Skript
+	org.bukkit.ChatColor
+	org.bukkit.plugin.java.JavaPlugin
+	com.keenant.tabbed.Tabbed
+	com.keenant.tabbed.item.TextTabItem
+	com.keenant.tabbed.item.PlayerTabItem
+	com.keenant.tabbed.item.BlankTabItem
+	com.keenant.tabbed.util.Skins
+
+#!! 게임 점수
+# function addScore(player: player, message: text, score: number):
+	# if getTeam({_player}) != "pvp" or "train":
+	# 	addMetadata({_player}, "score", rounded {_score})
+	# if getTeam({_player}) != "train":
+	# send centered "%{PREFIX}% &f%{_message}% &a&l[+%rounded {_score}%]" to {_player}
+function sendScoreLog(player: player):
+	wipe {_player}'s sidebar
+	set {_scoresum} to getMetadata({_player}, "scoresum")
+	set name of sidebar of {_player} to "&b점수 기록 &a&l[+%rounded {_scoresum}%]"
+
+	set score "&f" in sidebar of {_player} to 15
+	set {_i} to 14
+	loop {-%{_player}%.score::*}:
+		if getCooldown("%{_player}'s id%-score-%loop-index%") = 0 ticks:
+			delete {-%{_player}%.score::%loop-index%}
+		else:
+			if loop-index contains " 처치" or " 파괴":
+				set score "&f%loop-index% &a&l[+%rounded loop-value%]" in sidebar of {_player} to {_i}
+			else:
+				set score "     &f%loop-index% &a&l[+%rounded loop-value%]     " in sidebar of {_player} to {_i}
+			add -1 to {_i}
+function addScore(player: player, message: text, score: number):
+	if getTeam({_player}) doesn't contain "pvp":
+		if getTeam({_player}) != "train":
+			if getCooldown("%{_player}'s id%-scoresum") = 0 ticks:
+				resetMetadata({_player}, "scoresum")
+			if getCooldown("%{_player}'s id%-score-%{_message}%") = 0 ticks:
+				delete {-%{_player}%.score::%{_message}%}
+			addMetadata({_player}, "score", {_score})
+			addMetadata({_player}, "scoresum", {_score})
+			setMetadata({_player}, "scorelast", {_message})
+			add {_score} to {-%{_player}%.score::%{_message}%}
+			setCooldown("%{_player}'s id%-score-%{_message}%", 5 seconds)
+			setCooldown("%{_player}'s id%-scoresum", 5 seconds)
+#!! 게임 입장
+function joinGame(player: player, mode: integer):
+	if {nogame} is true:
+		send "%{PREFIX}% &c현재 서버가 개발중이거나 점검 중입니다." to {_player}
+		exit
+	# if {_mode} = 10:
+	# 	send "&b&l[ DVRST ] &c권한이 없습니다." to {_player}
+	# 	exit
+
+	if getGame({_player}) is not set:
+		if (check [{-game::%{_mode}%} is not set]) or (check [{-game::%{_mode}%} is "LOBBY"]) is true:
+			# if {%{_player}%::battletuto} is not set:
+			# 	send "&b&l[ DVRST ] &c아직 튜토리얼을 진행하지 않으셨습니다." to {_player}
+			# 	teleport {_player} to {spawn}
+			# 	exit
+			setGame({_player}, {_mode})
+			set {-game::%{_mode}%} to "LOBBY"
+			set {-game::%{_mode}%::%{_player}%} to {_player}
+
+			loop {-game::%{_mode}%::*}:
+				send "%{PREFIX}% &f&l[&a&l+&f&l] &e&n%{_player}%" to loop-value
+				playSoundPlayer("random.join", loop-value, 1000, 1.2)
+
+			if {_mode} = 0:
+				set {_modename} to "팀 데스매치"
+			send "%{PREFIX}% &e%{_modename}% &f대기열에 등록했습니다." to {_player}
+			sendTitle({_player}, "", "&f대기열에서 나가려면 &l&n'/quit'&f 또는 &l&n'/q'&f를 입력하십시오.", 40 ticks, 10 ticks, 40 ticks)
+			sendBossbar({_player}, "gamewaitmsg-%{_player}%", "&f대기열에서 나가려면 &l&n'/quit'&f 또는 &l&n'/q'&f를 입력하십시오.", 0, "white")
+
+			set {_pcount} to size of {-game::%{_mode}%::*}
+			if {_pcount} > 0:
+				loop {-game::%{_mode}%::*}:
+					sendBossbar(loop-value, "gamewait-%loop-value%", "&a&l팀 데스매치 &f[%{_pcount}%명]", 100, "green")
+
+				if mod({_pcount}, 2) = 0:
+					set {_i} to 30
+					if {debug} is true:
+						set {_i} to 6
+
+					loop {_i}*20 times:
+						subtract 1/20 from {_i}
+						if {_pcount} = size of {-game::%{_mode}%::*}:
+							loop {-game::%{_mode}%::*}:
+								send action bar "&a&l%ceil({_i})%초 후 시작됩니다." to loop-value-2
+								sendBossbar(loop-value-2, "gamewait-%loop-value-2%", "&a&l팀 데스매치 &f[%{_pcount}%명]", ({_i}/30)*100, "green")
+								if mod({_i}, 1) = 1:
+									playSoundPlayer("new.block.note_block.hat", loop-value-2, 1000, 1.2)
+								if {_i} = 0:
+									send action bar "&f" to loop-value-2
+							if "%{_i}%" = "10" or "5":
+								loop all players:
+									send "&b&l[ DVRST ] &e%{_modename}% &f게임이 &a&l%{_i}%&f초 후 시작됩니다!" to loop-player
+									playSoundPlayer("new.block.note_block.pling", loop-player, 1000, 1)
+							if "%{_i}%" = "0.05":
+								loop all players:
+									send "&b&l[ DVRST ] &e%{_modename}% &f게임이 시작되었습니다." to loop-player
+									playSoundPlayer("new.block.note_block.pling", loop-player, 1000, 1)
+						else:
+							loop {-game::%{_mode}%::*}:
+								send action bar "&c&l플레이어 수가 변동되어 시작을 중단합니다." to loop-value-2
+							exit
+						wait 1 tick
+
+					if {_pcount} = size of {-game::%{_mode}%::*}:
+						initGame({_mode})
+				else:
+					loop {-game::%{_mode}%::*}:
+						send "%{PREFIX}% &f인원수가 짝수일 때만 게임이 시작됩니다." to loop-value
+		else:
+			
+			# 난입 / 중도 참여
+	else:
+		send "%{PREFIX}% &c이미 대기열에 등록되어 있습니다." to {_player}
+
+#!! 게임 퇴장
+function quitGame(player: player):
+	set {_mode} to getGame({_player})
+
+	if {_mode} is set:
+		resetMetadata({_player}, "game")
+		set {_pcount} to size of {-game::%{_mode}%::*}
+
+		loop {-game::%{_mode}%::*}:
+			send "%{PREFIX}% &f&l[&6&l-&f&l] &e&n%{_player}%" to loop-value
+			playSoundPlayer("random.quit", loop-value, 1000, 1.2)
+			if {-game::%{_mode}%} = "LOBBY":
+				sendBossbar(loop-value, "gamewait-%loop-value%", "&a&l팀 데스매치 &f[%{_pcount}-1%명]", 100, "green")
+
+		if {-game::%{_mode}%} = "READY" or "START":
+			teleport({_player}, {spawn})
+			resetPlayer({_player})
+		delete {-game::%{_mode}%::%{_player}%}
+		deleteBossbar("gamewait-%{_player}%")
+		deleteBossbar("gamewaitmsg-%{_player}%")
+		deleteBossbar("gametime-%{_player}%")
+		wipe {_player}'s sidebar
+		wait 1 tick
+
+		if {_pcount}-1 <= 0:
+			delete {-game::%{_mode}%}
+			delete {-game::%{_mode}%::*}
+	else:
+		send "%{PREFIX}% &c대기열에 등록되어 있지 않습니다." to {_player}
+command /quit:
+	aliases: /퇴장, /q, /xhlwkd
+	trigger:
+		quitGame(player)
+#!! 게임 탭리스트
+function sendGameTablist(player: player, red: players, blue: players):
+	set {_player}'s tablist name to "%getRankPrefix({%{_player}%::rank})% %getLevelPrefix({%{_player}%::lv})% &f%{_player}%"
+	set {_mode} to getGame({_player})
+
+	if {-tabbed}.getTabList({_player}) is not set:
+		set {_tab} to {-tabbed}.newTableTabList({_player})
+	set {_tab} to {-tabbed}.getTabList({_player})
+	{_tab}.setBatchEnabled(true)
+	{_tab}.batchUpdate()
+	{_tab}.setHeader("&6&l[ &e&l팀 데스매치 &6&l] %nl%%nl%&4--- &c&lRED &f&l[ %{-redscore::%{_mode}%}% ] &4---          &1--- &9&lBLUE &f&l[ %{-bluescore::%{_mode}%}% ] &1---")
+	{_tab}.setFooter("&b디스코드 : &d[ /디스코드 ]      &b마인리스트 : &d[ /마인리스트 ]%nl%%nl%&c>> &6서버 주소 : &nDMGR.mcsv.kr&c <<")
+
+	loop 20 times:
+		{_tab}.remove(loop-number)
+	loop 20 times:
+		{_tab}.remove(59+loop-number)
+
+	set {-redscore::%{_mode}%} to 0
+	set {-bluescore::%{_mode}%} to 0
+
+	loop 6 times:
+		set {_score} to getMetadata({_red::%loop-number%}, "score")
+		set {_kill} to getMetadata({_red::%loop-number%}, "kill")
+		set {_death} to getMetadata({_red::%loop-number%}, "death")
+		set {_assist} to getMetadata({_red::%loop-number%}, "assist")
+		if {_red::%loop-number%} is set:
+			{_tab}.set(1, loop-number*3-2, new PlayerTabItem({_red::%loop-number%}, PlayerTabItem.LIST_NAME_PROVIDER))
+			{_tab}.set(1, loop-number*3-1, new TextTabItem("&e✪ &f%rounded {_score}%   &2K &f%{_kill}%   &4D &f%{_death}%   &6A &f%{_assist}%"))
+		else:
+			{_tab}.remove(20+(loop-number*3)-2)
+			{_tab}.remove(20+(loop-number*3)-1)
+	{_tab}.set(1, 0, new TextTabItem("", 0, Skins.getDot(ChatColor.RED)))
+	{_tab}.get(20).setText("&c&l&n RED &f(%size of {_red::*}%명)")
+
+	loop 6 times:
+		set {_score} to getMetadata({_blue::%loop-number%}, "score")
+		set {_kill} to getMetadata({_blue::%loop-number%}, "kill")
+		set {_death} to getMetadata({_blue::%loop-number%}, "death")
+		set {_assist} to getMetadata({_blue::%loop-number%}, "assist")
+		if {_blue::%loop-number%} is set:
+			{_tab}.set(2, loop-number*3-2, new PlayerTabItem({_blue::%loop-number%}, PlayerTabItem.LIST_NAME_PROVIDER))
+			{_tab}.set(2, loop-number*3-1, new TextTabItem("&e✪ &f%rounded {_score}%   &2K &f%{_kill}%   &4D &f%{_death}%   &6A &f%{_assist}%"))
+		else:
+			{_tab}.remove(40+(loop-number*3)-2)
+			{_tab}.remove(40+(loop-number*3)-1)
+	{_tab}.set(2, 0, new TextTabItem("", 0, Skins.getDot(ChatColor.BLUE)))
+	{_tab}.get(40).setText("&9&l&n BLUE &f(%size of {_blue::*}%명)")
+
+	{_tab}.batchUpdate()
+#!! 게임 시작 / 게임 틱
+function initGame(mode: integer):
+	set {_pcount} to size of {-game::%{_mode}%::*}
+
+	if {_mode} = 0:
+		set {_modename} to "팀 데스매치"
+		set {_ptime} to 10 minutes
+	set {-redscore::%{_mode}%} to 0
+	set {-bluescore::%{_mode}%} to 0
+	set {-gametime::%{_mode}%} to {_ptime}
+
+	if {-game::%{_mode}%} = "LOBBY":
+		set {-game::%{_mode}%} to "READY"
+		loop {-game::%{_mode}%::*}:
+			add loop-value to {_p::*}
+		loop {_pcount}/2 times:
+			set {_rp} to random element out of {_p::*}
+			setTeam({_rp}, "red")
+			remove {_rp} from {_p::*}
+		loop {_pcount}/2 times:
+			set {_rp} to random element out of {_p::*}
+			setTeam({_rp}, "blue")
+			remove {_rp} from {_p::*}
+
+		loop {-game::%{_mode}%::*}:
+			loop 50 times:
+				send "&f" to loop-value-1
+			deleteBossbar("gamewait-%loop-value%")
+			deleteBossbar("gamewaitmsg-%loop-value%")
+			deleteHologram("%loop-value's id%")
+			set slot 8 of loop-value to emerald named "&a전투원을 선택하십시오."
+			set gamemode of loop-value to survival
+			setHotbarSlot(loop-value, 8)
+			add 1 to {%loop-value%::battlecount}
+			if size of {-game::%{_mode}%::*} <= 2:
+				set {-%loop-value%.allchat} to true
+			sendTitle(loop-value, "&c&l%{_modename}%", "&bQ를 눌러 전투원을 선택하십시오.", 15 seconds, 0 ticks, 0 ticks)
+			setMetadata(loop-value, "score", 0)
+			setMetadata(loop-value, "kill", 0)
+			setMetadata(loop-value, "death", 0)
+			setMetadata(loop-value, "assist", 0)
+			setMetadata(loop-value, "damage", 0)
+			setMetadata(loop-value, "heal", 0)
+			setMetadata(loop-value, "live", 0)
+			if getTeam(loop-value) = "red":
+				teleport(loop-value, {battlered::%{_mode}%})
+			if getTeam(loop-value) = "blue":
+				teleport(loop-value, {battleblue::%{_mode}%})
+
+	wait 1 seconds
+	loop {-game::%{_mode}%::*}:
+		deleteHologram("%loop-value's id%-game")
+		createHologram("%loop-value's id%-game", loop-value, "&b&l%loop-value%||&c몰?루")
+		bindHologram("%loop-value's id%-game", loop-value, 0, 2.5, 0)
+		loop all players:
+			showHologram("%loop-value-1's id%-game", false, loop-player)
+		loop {-game::%{_mode}%::*}:
+			if loop-value-1 != loop-value-2:
+				if isEnemy(loop-value-1, loop-value-2) is false:
+					showHologram("%loop-value-1's id%-game", true, loop-value-2)
+	if {_mode} = 0:
+		set {_wait} to 20
+	loop {_wait} times:
+		if {-game::%{_mode}%} = "READY":
+			if {_wait}-loop-number < 5:
+				loop {-game::%{_mode}%::*}:
+					sendTitle(loop-value-2, "&f&l%{_wait}+1-loop-number%", "", 5 ticks, 0 ticks, 10 ticks)
+					playSoundPlayer("entity.experience_orb.pickup", loop-value-2, 1000, 1)
+			wait 1 second
+		else:
+			exit
+	loop {-game::%{_mode}%::*}:
+		wipe loop-value's sidebar
+		{-tabbed}.destroyTabList(loop-value)
+		if {_mode} = 0:
+			sendTitle(loop-value, "&c&l전투 시작", "", 1 seconds, 0 ticks, 1 seconds)
+			playSoundPlayer("entity.wither.spawn", loop-value, 1000, 1)
+
+	set {-game::%{_mode}%} to "START"
+	if size of {-game::%{_mode}%::*} > 2:
+		loop {-game::%{_mode}%::*}:
+			send "%{PREFIX}%" to loop-value
+			send "%{PREFIX}% &f&l&n'/tc'&f를 입력하여 팀/전체 채팅을 전환할 수 있습니다." to loop-value
+			send "%{PREFIX}%" to loop-value
+
+	# 게임 틱
+
+	while {-gametime::%{_mode}%} > 0 seconds:
+		if {-game::%{_mode}%} = "START":
+			subtract 1 second from {-gametime::%{_mode}%}
+			set {_time} to parseTimeStringD({-gametime::%{_mode}%})
+
+			delete {_red::*}
+			delete {_blue::*}
+			loop {-game::%{_mode}%::*}:
+				if getTeam(loop-value) is "red":
+					add loop-value to {_red::*}
+				else if getTeam(loop-value) is "blue":
+					add loop-value to {_blue::*}
+
+			loop {-game::%{_mode}%::*}:
+				set {_player} to loop-value
+				if getCooldown("%{_player}'s id%-scoresum") > 0 ticks:
+					sendScoreLog({_player})
+				else:
+					wipe {_player}'s sidebar
+				sendGameTablist({_player}, {_red::*}, {_blue::*})
+				sendBossbar({_player}, "gametime-%{_player}%", "&b남은 시간 : &l%{_time}%", ({-gametime::%{_mode}%} to ticks/{_ptime} to ticks)*100, "blue")
+				if {-gametime::%{_mode}%} = 1 minute:
+					sendTitle({_player}, "&c1분 남았습니다.", "", 1 seconds, 0 seconds, 0.5 seconds, true)
+					playSoundPlayer("entity.experience_orb.pickup", {_player}, 1000, 1)
+				if {-gametime::%{_mode}%} <= 10 seconds:
+					sendTitle({_player}, "&c%{_time}%", "", 0.3 seconds, 0 seconds, 0.5 seconds, true)
+					playSoundPlayer("entity.experience_orb.pickup", {_player}, 1000, 1)
+
+			if {-gametime::%{_mode}%} = 0 second:
+				finishGame({_mode})
+			wait 1 second
+		else:
+			exit
+
+#!! 게임 종료
+function finishGame(mode: integer):
+	if {-redscore::%{_mode}%} > {-bluescore::%{_mode}%}:
+		set {_win} to "red"
+	else if {-bluescore::%{_mode}%} > {-redscore::%{_mode}%}:
+		set {_win} to "blue"
+	else:
+		set {_win} to "draw"
+
+	loop {-game::%{_mode}%::*}:
+		set {_team} to getTeam(loop-value)
+		set {_score::%{_team}%::%loop-value%} to getMetadata(loop-value, "score")
+		set {_damage::%{_team}%::%loop-value%} to getMetadata(loop-value, "damage")
+		set {_kill::%{_team}%::%loop-value%} to getMetadata(loop-value, "kill")
+		set {_heal::%{_team}%::%loop-value%} to getMetadata(loop-value, "score")
+		set {_live::%{_team}%::%loop-value%} to getMetadata(loop-value, "live")
+	loop 2 times:
+		if loop-number = 1:
+			set {_team} to "red"
+		if loop-number = 2:
+			set {_team} to "blue"
+		set {_score::%{_team}%::*} to sorted {_score::%{_team}%::*}
+		set {_damage::%{_team}%::*} to sorted {_damage::%{_team}%::*}
+		set {_kill::%{_team}%::*} to sorted {_kill::%{_team}%::*}
+		set {_heal::%{_team}%::*} to sorted {_heal::%{_team}%::*}
+		set {_live::%{_team}%::*} to sorted {_live::%{_team}%::*}
+
+	loop {-game::%{_mode}%::*}:
+		set {_team} to getTeam(loop-value)
+		send "%{PREFIX}% &7==============================" to loop-value
+
+		if {_win} is "draw":
+			sendTitle(loop-value, "&e&l무승부", "", 2 seconds, 0 seconds, 2 seconds, true)
+			playSoundPlayer("entity.player.levelup", loop-value, 1000, 1)
+			send "%{PREFIX}% &d&l플레이 정보 &e&l[무승부]" to loop-value
+		else if {_team} = {_win}:
+			sendTitle(loop-value, "&b&l승리", "", 2 seconds, 0 seconds, 2 seconds, true)
+			playSoundPlayer("ui.toast.challenge_complete", loop-value, 1000, 1.5)
+			add 1 to {%loop-value%::battlewin}
+			send "%{PREFIX}% &d&l플레이 정보 &b&l[승리]" to loop-value
+		else:
+			sendTitle(loop-value, "&c&l패배", "", 2 seconds, 0 seconds, 2 seconds, true)
+			playSoundPlayer("entity.generic.explode", loop-value, 1000, 0.6)
+			add 1 to {%loop-value%::battlelose}
+			send "%{PREFIX}% &d&l플레이 정보 &c&l[패배]" to loop-value
+	
+		send "%{PREFIX}%" to loop-value
+		loop 5 times:
+			if loop-number = 1:
+				set {_name} to "score"
+				set {_dname} to "점수"
+			if loop-number = 2:
+				set {_name} to "damage"
+				set {_dname} to "입힌 피해"
+			if loop-number = 3:
+				set {_name} to "kill"
+				set {_dname} to "처치"
+			if loop-number = 4:
+				set {_name} to "heal"
+				set {_dname} to "치유"
+			if loop-number = 5:
+				set {_name} to "live"
+				set {_dname} to "생존 시간"
+			set {_i} to size of {_%{_name}%::%{_team}%::*}+1
+			set {_point} to -1
+			loop {_%{_name}%::%{_team}%::*}:
+				if {_point} != loop-value-3:
+					subtract 1 from {_i}
+				set {_point} to loop-value-3
+				set {_dpoint} to {_point}
+				if {_name} is "live":
+					set {_dpoint} to parseTimeStringD(parseTimespan({_point}*20))
+				if {_name} is "score" or "damage" or "heal":
+					set {_dpoint} to rounded {_point}
+				if {_point} = getMetadata(loop-value-1, {_name}):
+					if {_i} <= 3:
+						if {_i} = 1:
+							set {_color} to "&e"
+						if {_i} = 2:
+							set {_color} to "&f"
+						if {_i} = 3:
+							set {_color} to "&6"
+						send "%{PREFIX}% %{_color}%&l■ %{_color}%%{_dname}% : %{_dpoint}% &l[%{_i}%위]" to loop-value-1
+					else:
+						send "%{PREFIX}% &7□ %{_dname}% : %{_dpoint}% [%{_i}%위]" to loop-value-1
+					exit loop
+
+		send "%{PREFIX}% &7□ 사망 : %getMetadata(loop-value, "death")%" to loop-value
+		send "%{PREFIX}% &7==============================" to loop-value
+
+	wait 1 tick
+	loop {-game::%{_mode}%::*}:
+		make loop-value execute command "/q"
+
+# 게임 스폰구역
+on region leave:
+	if "%event-region%" contains "BattleRed" or "BattleBlue":
+		set {_mode} to getGame(player)
+
+		if {_mode} is set:
+			if (check [{-game::%{_mode}%} is "READY"]) or (check [getMetadata(player, "char") is not set]) is true:
+				if "%event-region%" contains "BattleRed1":
+					teleport(player, {battlered::0})
+				if "%event-region%" contains "BattleBlue1":
+					teleport(player, {battleblue::0})
+				exit
+
+			set slot 8 of player to air
+# 전투원 선택창 열기
+packet event play_client_block_dig:
+	if arbitrary penum 1 of event-packet is "DROP_ITEM":
+		if "%region at player%" contains "BattleRed" or "BattleBlue":
+			set {_mode} to getGame(player)
+			if {_mode} is set:
+				selectChar(player)
+				cancel event

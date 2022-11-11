@@ -1,0 +1,98 @@
+#!! 구역 안 위치 확인
+function isInCube(loc: location, loc1: location, loc2: location) :: boolean:
+	if x-coord of {_loc1} < x-coord of {_loc2}:
+		if x-coord of {_loc} >= x-coord of {_loc1}:
+			add 1 to {_pass}
+	else if x-coord of {_loc1} > x-coord of {_loc2}:
+		if x-coord of {_loc} <= x-coord of {_loc1}:
+			add 1 to {_pass}
+	if y-coord of {_loc1} < y-coord of {_loc2}:
+		if y-coord of {_loc} >= y-coord of {_loc1}:
+			add 1 to {_pass}
+	else if y-coord of {_loc1} > y-coord of {_loc2}:
+		if y-coord of {_loc} <= y-coord of {_loc1}:
+			add 1 to {_pass}
+	if z-coord of {_loc1} < z-coord of {_loc2}:
+		if z-coord of {_loc} >= z-coord of {_loc1}:
+			add 1 to {_pass}
+	else if z-coord of {_loc1} > z-coord of {_loc2}:
+		if z-coord of {_loc} <= z-coord of {_loc1}:
+			add 1 to {_pass}
+	if {_pass} = 3:
+		return true
+	return false
+#!! 통과 가능 블록 확인
+function isNonSolid(loc: location) :: boolean:
+	if block at {_loc} is air:
+		return true
+	if (block at {_loc}).getType().isOccluding() is false:
+		if type of block at {_loc} is glass or any stained glass block or any leaves or beacon or glowstone or sea lantern or cauldron or anvil:
+			return false
+
+		if "%block at {_loc}%" contains "slab" or "stair":
+			if "%block at {_loc}%" doesn't contain "double":
+				if "%block at {_loc}%" contains "upside":
+					if y-coord of {_loc}-floor(y-coord of {_loc}) < 0.5:
+						return true
+					return false
+				else:
+					if y-coord of {_loc}-floor(y-coord of {_loc}) > 0.5:
+						return true
+					return false
+		return true
+	return false
+#!! 통과 가능 확인
+function canPass(loc1: location, loc2: location) :: boolean:
+	loop line between {_loc1} and {_loc2} with density 2:
+		if isNonSolid(loop-location) is false:
+			return false
+	return true
+#!! 방벽 통과 가능 확인
+function canPassShield(entity: entity, loc1: location, loc2: location) :: boolean:
+	loop line between {_loc1} and {_loc2} with density 4:
+		delete {_target}
+		set {_target} to nearEnemy({_entity}, loop-location, 0.5)
+		if {_target} is set:
+			if getMetadata({_target}, "shield") is true:
+				set {_shield} to true
+			else:
+				if {_shield} is not set:
+					return true
+				else:
+					return false
+	return true
+#!! 벡터 실수배
+function vMul(v: vector, s: number) :: vector:
+	return vector x of {_v} * {_s}, y of {_v} * {_s}, z of {_v} * {_s}
+function vDiv(v: vector, s: number) :: vector:
+	return vector x of {_v} / {_s}, y of {_v} / {_s}, z of {_v} / {_s}
+#!! 탄퍼짐
+function vSpread(v: vector, s: number) :: vector:
+	set {_rv} to vMul(random vector -- vector 0.5, 0.5, 0.5, {_s}*vector length of {_v}*0.02)
+	return {_v} ++ {_rv}
+
+	# set {_yaw} to ((yaw of {_v}*-1)-90) in radian
+	# set {_pitch} to (pitch of {_v}*-1) in radian
+	# loop 3 times:
+	# 	set {_spread::%loop-number%} to ((random number between 0 to 1) - (random number between 0 to 1)) * {_s} * 0.015
+	# set {_x} to (cos {_pitch}) * (cos {_yaw}) + {_spread::1}
+	# set {_y} to (sin {_pitch}) + {_spread::2}
+	# set {_z} to ((sin {_yaw})*-1) * (cos {_pitch}) + {_spread::3}
+
+	# return vMul(vector {_x}, {_y}, {_z}, vector length of {_v})
+#!! 벡터 회전축
+function getRollAxis(loc: location) :: vector:
+	return spherical vector 1, {_loc}'s yaw, {_loc}'s pitch
+function getYawAxis(loc: location) :: vector:
+	return normalized (getRollAxis({_loc}) cross spherical vector 1, {_loc}'s yaw+90, 0)
+function getPitchAxis(loc: location) :: vector:
+	set {_yaw} to getYawAxis({_loc})
+	return normalized (getRollAxis({_loc}) cross {_yaw})
+#!! 벡터 시선
+function getLineOfSight(loc: location, interval: number=0.25) :: vector:
+	return vMul(vector from yaw {_loc}'s yaw and pitch {_loc}'s pitch, {_interval})
+#!! 벡터 선
+function getLine(loc1: location, loc2: location, interval: number=0.25) :: vector:
+	return vMul(normalized vector from {_loc1} to {_loc2}, {_interval})
+function getLineN(loc1: location, loc2: location) :: vector:
+	return normalized vector from {_loc1} to {_loc2}

@@ -1,0 +1,712 @@
+import:
+	com.shampaggon.crackshot.events.WeaponAttachmentToggleEvent
+	com.shampaggon.crackshot.events.WeaponPrepareShootEvent
+options:
+	PUNCH_DAMAGE: 150
+	PUNCH_REACH: 2
+	BOT_ATTACK_DAMAGE: 100
+	BOT_ATTACK_RANGE: 20
+variables:
+	{Skill::MELEE_HITBOX} = 0.6
+	{Skill::HITS_HITBOX} = 0.15
+	{Skill::PROJ_HITBOX} = 0.3
+	{Skill::TARGET_HITBOX} = 1
+	{Skill::MAX_RANGE} = 70
+
+#!! 스킬 값
+function skill(player: player, skill: text) :: number:
+	return {%getChar({_player})%::%{_skill}%}
+#!! 스킬 쿨타임
+function setSkillCooldown(player: player, slot: integer, time: integer):
+	set {_name} to name of slot {_slot} of {_player}
+	set {_lore::*} to lore of slot {_slot} of {_player}
+
+	if {_time} = 0:
+		{_player}.getInventory().setItem({_slot}, red glass pane named {_name} with lore {_lore::*})
+		exit
+	if {_time} = -1:
+		{_player}.getInventory().setItem({_slot}, black glass pane named {_name} with lore {_lore::*})
+		exit
+
+	while name of slot {_slot} of {_player} is {_name}:
+		{_player}.getInventory().setItem({_slot}, {_time} of black glass pane named {_name} with lore {_lore::*})
+		if {urf} is not set:
+			loop 20 times:
+				wait 1 tick
+				if "%type of slot {_slot} of {_player}%" is not "black stained glass pane":
+					exit
+		else:
+			loop 3 times:
+				wait 1 tick
+				if "%type of slot {_slot} of {_player}%" is not "black stained glass pane":
+					exit
+
+		set {_time} to item amount of slot {_slot} of {_player}
+		subtract 1 from {_time}
+		if {_time} <= 0:
+			if name of slot {_slot} of {_player} is {_name}:
+				{_player}.getInventory().setItem({_slot}, red glass pane named {_name} with lore {_lore::*})
+				exit
+#!! 스킬 지속시간
+function setSkillDuration(player: player, slot: integer, time: integer, cooldown: integer=-1, ult: boolean=false):
+	set {_name} to name of slot {_slot} of {_player}
+	set {_lore::*} to lore of slot {_slot} of {_player}
+
+	if {_time} < 0:
+		{_player}.getInventory().setItem({_slot}, abs({_time}) of light green glass pane named {_name} with lore {_lore::*})
+		exit
+
+	while name of slot {_slot} of {_player} is {_name}:
+		{_player}.getInventory().setItem({_slot}, {_time} of light green glass pane named {_name} with lore {_lore::*})
+		loop 20 times:
+			wait 1 tick
+			if "%type of slot {_slot} of {_player}%" is not "lime stained glass pane":
+				exit
+
+		subtract 1 from {_time}
+		if {_time} <= 0:
+			if name of slot {_slot} of {_player} is {_name}:
+				setSkillCooldown({_player}, {_slot}, {_cooldown})
+				exit
+#!! 스킬 충전량 리젠
+function setSkillRegen(player: player, slot: integer):
+	if getCooldown("%{_player}'s id%-skill%{_slot}+1%regen") = 0 ticks:
+		set {_name} to name of slot {_slot} of {_player}
+		set {_lore::*} to lore of slot {_slot} of {_player}
+
+		while name of slot {_slot} of {_player} is {_name}:
+			setCooldown("%{_player}'s id%-skill%{_slot}+1%regen", parseTimespan(abs(skill({_player}, "%{_slot}+1%::쿨타임"))*20))
+			loop abs(skill({_player}, "%{_slot}+1%::쿨타임"))*20 times:
+				wait 1 tick
+				if "%type of slot {_slot} of {_player}%" doesn't contain "stained glass pane":
+					exit
+
+			if item amount of slot {_slot} of {_player} < skill({_player}, "%{_slot}+1%::충전량"):
+				set {_amt} to item amount of slot {_slot} of {_player}
+				if "%type of slot {_slot} of {_player}%" is "black stained glass pane":
+					set {_amt} to 0
+
+				if name of slot {_slot} of {_player} is {_name}:
+					{_player}.getInventory().setItem({_slot}, {_amt}+1 of red glass pane named {_name} with lore {_lore::*})
+				if {_amt}+1 >= skill({_player}, "%{_slot}+1%::충전량"):
+					exit loop
+			else:
+				exit loop
+#!! 스킬 사용 확인
+function isUsingSkill(player: player, slot: integer) :: boolean:
+	if type of slot {_slot} of {_player} is stained glass pane:
+		if durability of slot {_slot} of {_player} = 5:
+			return true
+	return false
+#!! 스킬 쿨타임 확인
+function isSkillCooldownFinished(player: player, slot: integer) :: boolean:
+	if type of slot {_slot} of {_player} is stained glass pane:
+		if durability of slot {_slot} of {_player} = 5 or 10 or 14:
+			return true
+	return false
+#!! 스킬 초기화
+function resetSkill(player: player):
+	set {_char} to getChar({_player})
+
+	if skill({_player}, "1::쿨타임") is set:
+		if skill({_player}, "1::쿨타임") < 0:
+			set slot 0 of {_player} to abs(rounded skill({_player}, "1::쿨타임")) of red glass pane named "&e&l[스킬] &c%{%{_char}%::액티브::이름1}%" with lore parseLore({%{_char}%::액티브::1})
+		else:
+			set slot 0 of {_player} to rounded skill({_player}, "1::쿨타임") of black glass pane named "&e&l[스킬] &c%{%{_char}%::액티브::이름1}%" with lore parseLore({%{_char}%::액티브::1})
+			setSkillCooldown({_player}, 0, rounded item amount of slot 0 of {_player})
+	else:
+		set slot 0 of {_player} to air
+
+	if skill({_player}, "2::쿨타임") is set:
+		if skill({_player}, "2::쿨타임") < 0:
+			set slot 1 of {_player} to abs(rounded skill({_player}, "2::쿨타임")) of red glass pane named "&e&l[스킬] &c%{%{_char}%::액티브::이름2}%" with lore parseLore({%{_char}%::액티브::2})
+		else:
+			set slot 1 of {_player} to rounded skill({_player}, "2::쿨타임") of black glass pane named "&e&l[스킬] &c%{%{_char}%::액티브::이름2}%" with lore parseLore({%{_char}%::액티브::2})
+			setSkillCooldown({_player}, 1, rounded item amount of slot 1 of {_player})
+	else:
+		set slot 1 of {_player} to air
+
+	if skill({_player}, "3::쿨타임") is set:
+		if skill({_player}, "3::쿨타임") < 0:
+			set slot 2 of {_player} to abs(rounded skill({_player}, "3::쿨타임")) of red glass pane named "&e&l[스킬] &c%{%{_char}%::액티브::이름3}%" with lore parseLore({%{_char}%::액티브::3})
+		else:
+			set slot 2 of {_player} to rounded skill({_player}, "3::쿨타임") of black glass pane named "&e&l[스킬] &c%{%{_char}%::액티브::이름3}%" with lore parseLore({%{_char}%::액티브::3})
+			setSkillCooldown({_player}, 2, rounded item amount of slot 2 of {_player})
+	else:
+		set slot 2 of {_player} to air
+
+	set slot 3 of {_player} to 1 of black glass pane named "&e&l[궁극기] &c%{%{_char}%::액티브::이름4}%" with lore parseLore({%{_char}%::액티브::4})
+	setSkillCooldown({_player}, 3, -1)
+#!! 근접공격
+function meleeAttack(player: player):
+	loop 4 times:
+		if {_exit} is not set:
+			set {_ploc} to location of {_player}'s head
+			set {_loc} to location of {_ploc}
+			set {_dir} to getLineOfSight({_player})
+
+			while distance between {_ploc} and {_loc} < {@PUNCH_REACH}:
+				add 1 to {_i}
+
+				if isNonSolid({_loc}~{_dir}) is false:
+					set {__loc} to location of {_loc}
+					set {_loc} to {_loc}~{_dir}
+					loop 4 times:
+						if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+							set {__loc} to {__loc}~vMul({_dir}, 0.2)
+					meleeHit({__loc}, block at {_loc})
+					set {_exit} to true
+					exit loop
+
+				if distance between {_ploc} and {_loc} > 0.5:
+					set {_target} to nearEnemy({_player}, {_loc}, {Skill::MELEE_HITBOX})
+					if {_target} is set:
+						set {_exit} to true
+						exit loop
+
+				set {_loc} to {_loc}~{_dir}
+			wait 1 tick
+
+	if {_target} is set:
+		damage({_player}, {_target}, {@PUNCH_DAMAGE}, {_loc}~{_dir}, "melee")
+		particle("crit", {_loc}~{_dir}, 0, 0, 0, 0.4, 10)
+		playSound("entity.player.attack.knockback", {_player}, 0.8, 1.1)
+		playSound("entity.player.attack.knockback", {_player}, 0.8, 1.1)
+function meleeAttack_use(player: player):
+	setCooldown("%{_player}'s id%-punch", 0.95 seconds)
+	setItemCooldown({_player}, 19 ticks, true)
+	apply mining fatigue of tier 5 without particles to {_player} for 0.95 seconds replacing existing effect
+	apply haste of tier 0 without particles to {_player} for 0 ticks replacing existing effect
+	playSound("entity.player.attack.sweep", {_player}, 0.6, 1.1)
+
+	setHotbarSlot({_player}, 7)
+	meleeAttack({_player})
+	wait 1 tick
+	sendSwing({_player})
+	wait 0.9 seconds
+
+	if isStunned({_player}) is false:
+		setHotbarSlot({_player}, 4)
+on swap hand items:
+	cancel event
+	if isStunned(player) is false:
+		if getChar(player) is set:
+			if getCooldown("%player's id%-punch") = 0 ticks:
+				if getCooldown("%player's id%-nomelee") = 0 ticks:
+					if getItemCooldown(player, true) = 0 ticks:
+						meleeAttack_use(player)
+#!! 훈련봇 공격
+function trainBot_Attack(player: entity):
+	playSound("entity.shulker.shoot", {_player}, 0.5, 1.3)
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location 0.2 down {_ploc}
+	set {_dir} to getLineOfSight({_player})
+
+	while distance between {_ploc} and {_loc} < {@BOT_ATTACK_RANGE}:
+		add 1 to {_i}
+
+		if isNonSolid({_loc}~{_dir}) is false:
+			set {__loc} to location of {_loc}
+			set {_hitloc} to {_loc}~{_dir}
+			exit loop
+
+		if distance between {_ploc} and {_loc} > 0.5:
+			set {_target} to nearEnemy({_player}, {_loc}, {Skill::PROJ_HITBOX})
+			if {_target} is set:
+				set {__loc} to location of {_loc}
+				loop 4 times:
+					set {__loc} to {__loc}~vMul({_dir}, 0.5)
+					if isHeadshot({__loc}, {_target}) is true:
+						set {_headshot} to true
+				exit loop
+
+		set {_loc} to {_loc}~{_dir}
+		if mod({_i}, 3) = 0:
+			if {_player} is a player:
+				particleRGB({_loc}, 0.05, 0.05, 0.05, 60, 60, 255, 3)
+			else:
+				particleRGB({_loc}, 0.05, 0.05, 0.05, 255, 60, 60, 3)
+		if mod({_i}, 4) = 0:
+			wait 1 tick
+
+	if {_target} is set:
+		damage({_player}, {_target}, {@BOT_ATTACK_DAMAGE}, {_loc}~{_dir}, "", "%{_headshot}%" parsed as boolean)
+#!! 좌클릭
+function leftclick(player: player):
+	set {_char} to getChar({_player})
+
+	if getCooldown("%{_player}'s id%-death") = 0 ticks:
+		if {_char} = "아케이스":
+			if isSkillCooldownFinished({_player}, 1) is true:
+				if isUsingSkill({_player}, 1) is false:
+					아케이스_2({_player})
+
+		if {_char} = "퀘이커":
+			if getItemCooldown({_player}) = 0 ticks:
+				if isUsingSkill({_player}, 0) is false:
+					퀘이커_평({_player})
+
+		if {_char} = "실리아" or "체드":
+			if getItemCooldown({_player}, true) = 0 ticks:
+				if getCooldown("%{_player}'s id%-leash") = 0 ticks:
+					if distance between targeted block of {_player} and {_player}'s head <= 1.25:
+						if isNonSolid(location of targeted block of {_player}) is false:
+							if getCooldown("%{_player}'s id%-wallride") = 0 ticks:
+								if {_char} = "실리아":
+									실리아_P1_1({_player})
+								else if {_char} = "체드":
+									체드_P1({_player})
+
+		if {_char} = "실리아":
+			if getCooldown("%{_player}'s id%-wallride") = 0 ticks:
+				if getItemCooldown({_player}) = 0 ticks:
+					실리아_평({_player})
+
+		if {_char} = "니스":
+			if getItemCooldown({_player}) = 0 ticks:
+				if isUsingSkill({_player}, 2) is false:
+					니스_평L({_player})
+
+		if {_char} = "에토르":
+			if name of {_player}'s tool contains "ka-74":
+				if getItemCooldown({_player}, true) = 0 ticks:
+					if getCooldown("%{_player}'s id%-평L-공격속도") = 0 ticks:
+						if isUsingSkill({_player}, 2) is false:
+							if isUsingSkill({_player}, 3) is false:
+								에토르_평L({_player})
+
+		if {_char} = "페르델":
+			if getItemCooldown({_player}, true) = 0 ticks:
+				if isSkillCooldownFinished({_player}, 0) is true:
+					if isUsingSkill({_player}, 2) is false:
+						if isUsingSkill({_player}, 3) is false:
+							페르델_1({_player})
+
+		if {_char} = "체드":
+			if distance between targeted block of {_player} and {_player}'s head > 1.25:
+				체드_S2({_player})
+
+		if {_char} = "인페르노":
+			if getItemCooldown({_player}, true) = 0 ticks:
+				if isUsingSkill({_player}, 2) is false:
+					if getCooldown("%{_player}'s id%-평L-공격속도") = 0 ticks:
+						if getGunAmmo({_player}) >= 50:
+							인페르노_평L({_player})
+					if getGunAmmo({_player}) = 0:
+						fireGun({_player})
+packet event play_client_use_entity:
+	if getChar(player) is set:
+		if getHotbarSlot(player) = 4:
+			if "%object pinfo 1 of event-packet%" is "ATTACK":
+				wait 0 tick
+				leftclick(player)
+packet event play_client_arm_animation:
+	if getChar(player) is set:
+		if getHotbarSlot(player) = 4:
+			wait 0 tick
+			leftclick(player)
+#!! 우클릭
+function rightclick(player: player):
+	set {_char} to getChar({_player})
+
+	if getCooldown("%{_player}'s id%-death") = 0 ticks:
+		if {_char} = "퀘이커":
+			if getItemCooldown({_player}, true) = 0 ticks:
+				if isSkillCooldownFinished({_player}, 0) is true:
+					퀘이커_1({_player})
+
+		if {_char} = "실리아":
+			if getItemCooldown({_player}, true) = 0 ticks:
+				if isSkillCooldownFinished({_player}, 1) is true:
+					if isUsingSkill({_player}, 3) is false:
+						실리아_2({_player})
+on rightclick:
+	if getChar(player) is set:
+		if getHotbarSlot(player) = 4:
+			rightclick(player)
+on WeaponAttachmentToggleEvent:
+	set {_player} to event.getPlayer()
+	set {_reload} to getCooldown("%{_player}'s id%-gunreload")
+
+	if name of {_player}'s tool contains "mk.73 elnr":
+		if getCooldown("%{_player}'s id%-scope") = 0 ticks:
+			setCooldown("%{_player}'s id%-scope", 4 ticks)
+			setCooldown("%{_player}'s id%-gunreload", 0 ticks)
+			if getCooldown("%{_player}'s id%-gunreload") = 0 ticks:
+				예거_평_조준경({_player})
+			else if name of {_player}'s tool contains "◀▷":
+				예거_평_조준경({_player})
+		else:
+			cancel event
+			exit
+
+	setCooldown("%{_player}'s id%-gunreload", 0 ticks)
+	wait 1 tick
+	{_player}.updateInventory()
+#!! 총기 사격
+on gun shoot:
+	set {_player} to player
+
+	if name of {_player}'s tool contains "hln-12":
+		아케이스_평({_player})
+	if name of {_player}'s tool contains "mk.73 elnr":
+		예거_평({_player})
+	if name of {_player}'s tool contains "이중성":
+		니스_평R({_player})
+	if name of {_player}'s tool contains "ka-74":
+		에토르_평R({_player})
+	if name of {_player}'s tool contains "hln-11m":
+		에토르_2_발동({_player})
+	if name of {_player}'s tool contains "파멸포":
+		에토르_4_발동({_player})
+	if name of {_player}'s tool contains "연속 화살":
+		체드_1_발동({_player})
+	if name of {_player}'s tool contains "포텐슘 기관권총":
+		페르델_평({_player})
+	if name of {_player}'s tool contains "파이어스톰":
+		인페르노_평R({_player})
+	if name of {_player}'s tool contains "데스페라도":
+		마그리타_평({_player})
+on WeaponPrepareShootEvent:
+	set {_player} to event.getPlayer()
+
+	if getItemCooldown({_player}, true) > 0 ticks:
+		cancel event
+		exit
+
+	if name of {_player}'s tool contains "mk.73 elnr":
+		if getCooldown("%{_player}'s id%-scope") > 0 ticks:
+			cancel event
+			exit
+		if name of {_player}'s tool contains "◁▶":
+			if getGunAmmo({_player}) > 0:
+				if {_player} doesn't have speed:
+					setCooldown("%{_player}'s id%-gunreload", 0 ticks)
+					cancelGunReload({_player})
+					replace all "◁▶" with "◀▷" in name of slot 4 of {_player}
+					예거_평_조준경({_player})
+					replace all "◀▷" with "◁▶" in name of slot 4 of {_player}
+					cancel event
+					exit
+
+	if getGunAmmo({_player}) > 0:
+		setCooldown("%{_player}'s id%-gunreload", 0 ticks)
+#!! 총기 재장전
+on gun reload:
+	set {_player} to player
+	set {_char} to getChar({_player})
+
+	if {_char} = "체드":
+		if name of slot 4 of {_player} contains "연속 화살":
+			setSkillCooldown({_player}, 0, rounded skill({_player}, "1::쿨타임"))
+			setCooldown("%{_player}'s id%-1-지속시간", 0 ticks)
+on gun reload complete:
+	set {_player} to player
+	set {_char} to getChar({_player})
+	
+	if name of {_player}'s tool contains "mk.73 elnr":
+		replace all "◁▶" with "◀▷" in name of slot 4 of {_player}
+		# if name of slot 4 of {_player} contains "mk.73 elnr":
+		# 	wait 1 tick
+		# 	set slot 4 of {_player} to {mk.73elnr}
+#!! 활 당기기
+packet event play_client_block_place:
+	set {_player} to player
+	set {_char} to getChar({_player})
+
+	if getHotbarSlot({_player}) = 4:
+		if {_char} = "체드":
+			if name of slot 4 of {_player} contains "아폴론":
+				if {_player} has arrow:
+					playSound("new.item.crossbow.loading_middle", {_player}, 0.6, 1)
+packet event play_client_block_dig:
+	set {_player} to player
+	set {_char} to getChar({_player})
+
+	if getHotbarSlot({_player}) = 4:
+		if {_char} = "체드":
+			if name of slot 4 of {_player} contains "아폴론":
+				if {_player} has arrow:
+					loop players in radius 12 around {_player}:
+						stop sound "new.item.crossbow.loading_middle" for loop-player
+#!! 활 발사
+on shoot:
+	set {_player} to shooter
+	set {_char} to getChar({_player})
+
+	if {_char} = "체드":
+		cancel event
+	if name of {_player}'s tool contains "아폴론":
+		cancel event
+		체드_평({_player}, (vector length of velocity of projectile round 1 decimal digits)/3)
+#!! 더블 점프
+on flight toggle:
+	set {_player} to player
+	set {_char} to getChar({_player})
+
+	if {_char} = "실리아":
+		cancel event
+		if getCooldown("%{_player}'s id%-wallride") = 0 ticks:
+			실리아_P1_2({_player})
+
+	if {_char} = "체드":
+		cancel event
+		if isSkillCooldownFinished({_player}, 1) is true:
+			if isUsingSkill({_player}, 2) is false:
+				if isUsingSkill({_player}, 3) is false:
+					체드_2({_player})
+#!! 웅크리기
+on sneak toggle:
+	set {_player} to player
+	set {_char} to getChar({_player})
+
+	if {_player} isn't sneaking:
+		if {_char} = "에토르":
+			if getItemCooldown({_player}, true) = 0 ticks:
+				set {_mob} to getMetadata({_player}, "2-개체")
+				if {_mob} is alive:
+					if distance between {_mob} and {_player} < 1.5:
+						에토르_2_장착({_player}, {_mob})
+#!! 아머스탠드 클릭
+on armor stand interact:
+	cancel event
+on rightclick on armor stand:
+	cancel event
+	if getMetadata(player, "char") = "에토르":
+		fireGun(player)
+#!! 스킬 사용
+on player's tool change:
+	if getChar(player) is set:
+		set {_char} to getChar(player)
+
+		if isStunned(player) is true:
+			cancel event
+			exit
+		if getCooldown("%player's id%-death") > 0 ticks:
+			cancel event
+			exit
+		if getItemCooldown(player, true) > 0 ticks:
+			cancel event
+			exit
+
+		if new changed hotbar slot is 0 or 1 or 2 or 3 or 8:
+			if new changed hotbar slot is 8:
+				if isStunned(player) is true:
+					exit
+			cancel event
+			setHotbarSlot(player, 4)
+			if "%type of player's tool%" is "black stained glass pane":
+				alert(player, "스킬이 쿨타임 상태입니다.")
+			remove speed from player
+
+		if getCooldown("%player's id%-punch") = 0 ticks:
+			if getCooldown("%player's id%-nomelee") = 0 ticks:
+				if new changed hotbar slot is 7:
+					meleeAttack(player)
+
+			if {_char} = "아케이스":
+				if new changed hotbar slot is 1:
+					if isSkillCooldownFinished(player, 1) is true:
+						if isUsingSkill(player, 1) is false:
+							아케이스_2(player)
+				if new changed hotbar slot is 2:
+					if isSkillCooldownFinished(player, 2) is true:
+						if isUsingSkill(player, 2) is false:
+							아케이스_3(player)
+				if new changed hotbar slot is 3:
+					if isSkillCooldownFinished(player, 3) is true:
+						if isUsingSkill(player, 3) is false:
+							아케이스_4(player)
+
+			if {_char} = "예거":
+				if new changed hotbar slot is 0:
+					if isSkillCooldownFinished(player, 0) is true:
+						if isUsingSkill(player, 2) is false:
+							예거_1(player)
+				if new changed hotbar slot is 1:
+					if isSkillCooldownFinished(player, 1) is true:
+						if isUsingSkill(player, 2) is false:
+							예거_2(player)
+				if new changed hotbar slot is 2:
+					if isSkillCooldownFinished(player, 2) is true:
+						예거_3(player)
+				if new changed hotbar slot is 3:
+					if isSkillCooldownFinished(player, 3) is true:
+						if isUsingSkill(player, 2) is false:
+							if isUsingSkill(player, 3) is false:
+								예거_4(player)
+
+			if {_char} = "퀘이커":
+				if new changed hotbar slot is 0:
+					if isSkillCooldownFinished(player, 0) is true:
+						if isUsingSkill(player, 1) is false:
+							if isUsingSkill(player, 2) is false:
+								if isUsingSkill(player, 3) is false:
+									퀘이커_1(player)
+				if new changed hotbar slot is 1:
+					if isSkillCooldownFinished(player, 1) is true:
+						if isUsingSkill(player, 0) is false:
+							if isUsingSkill(player, 1) is false:
+								if isUsingSkill(player, 2) is false:
+									if isUsingSkill(player, 3) is false:
+										퀘이커_2(player)
+				if new changed hotbar slot is 2:
+					if isSkillCooldownFinished(player, 2) is true:
+						if isUsingSkill(player, 0) is false:
+							if isUsingSkill(player, 1) is false:
+								if isUsingSkill(player, 2) is false:
+									if isUsingSkill(player, 3) is false:
+										퀘이커_3(player)
+				if new changed hotbar slot is 3:
+					if isSkillCooldownFinished(player, 3) is true:
+						if isUsingSkill(player, 1) is false:
+							if isUsingSkill(player, 2) is false:
+								if isUsingSkill(player, 3) is false:
+									퀘이커_4(player)
+							
+			if {_char} = "실리아":
+				if new changed hotbar slot is 0:
+					if isSkillCooldownFinished(player, 0) is true:
+						if isUsingSkill(player, 0) is false:
+							if isUsingSkill(player, 1) is false:
+								실리아_1(player)
+				if new changed hotbar slot is 1:
+					if isSkillCooldownFinished(player, 1) is true:
+						if isUsingSkill(player, 3) is false:
+							실리아_2(player)
+				if new changed hotbar slot is 2:
+					if isSkillCooldownFinished(player, 2) is true:
+						if isUsingSkill(player, 3) is false:
+							실리아_3(player)
+				if new changed hotbar slot is 3:
+					if isSkillCooldownFinished(player, 3) is true:
+						if isUsingSkill(player, 1) is false:
+							if isUsingSkill(player, 3) is false:
+								실리아_4(player)	
+
+			if {_char} = "니스":
+				if new changed hotbar slot is 0:
+					if isSkillCooldownFinished(player, 0) is true:
+						니스_1(player)
+				if new changed hotbar slot is 1:
+					if isSkillCooldownFinished(player, 1) is true:
+						니스_2(player)
+				if new changed hotbar slot is 2:
+					if isSkillCooldownFinished(player, 2) is true:
+						니스_3(player)
+				if new changed hotbar slot is 3:
+					if isSkillCooldownFinished(player, 3) is true:
+						if isUsingSkill(player, 3) is false:
+							니스_4(player)
+
+			if {_char} = "에토르":
+				if new changed hotbar slot is 0:
+					if isSkillCooldownFinished(player, 0) is true:
+						if isUsingSkill(player, 2) is false:
+							if isUsingSkill(player, 3) is false:
+								if isUsingSkill(player, 0) is false:
+									if getMetadata(player, "2-장착") is not set:
+										에토르_1(player)
+								else:
+									에토르_1(player)
+				if new changed hotbar slot is 1:
+					if isSkillCooldownFinished(player, 1) is true:
+						if isUsingSkill(player, 2) is false:
+							if isUsingSkill(player, 3) is false:
+								에토르_2(player)
+				if new changed hotbar slot is 2:
+					if isSkillCooldownFinished(player, 2) is true:
+						if isUsingSkill(player, 2) is false:
+							if isUsingSkill(player, 3) is false:
+								에토르_3(player)
+				if new changed hotbar slot is 3:
+					if isSkillCooldownFinished(player, 3) is true:
+						if getMetadata(player, "2-장착") is not set:
+							if isUsingSkill(player, 2) is false:
+								if isUsingSkill(player, 3) is false:
+									에토르_4(player)
+
+			if {_char} = "페르델":
+				if new changed hotbar slot is 0:
+					if isSkillCooldownFinished(player, 0) is true:
+						if isUsingSkill(player, 2) is false:
+							if isUsingSkill(player, 3) is false:
+								페르델_1(player)
+				if new changed hotbar slot is 1:
+					if isSkillCooldownFinished(player, 1) is true:
+						if isUsingSkill(player, 1) is false:
+							if isUsingSkill(player, 2) is false:
+								if isUsingSkill(player, 3) is false:
+									페르델_2(player)
+				if new changed hotbar slot is 2:
+					if isSkillCooldownFinished(player, 2) is true:
+						if isUsingSkill(player, 2) is false:
+							if isUsingSkill(player, 3) is false:
+								페르델_3(player)
+				if new changed hotbar slot is 3:
+					if isSkillCooldownFinished(player, 3) is true:
+						if isUsingSkill(player, 2) is false:
+							if isUsingSkill(player, 3) is false:
+								페르델_4(player)
+
+			if {_char} = "체드":
+				if new changed hotbar slot is 0:
+					if isSkillCooldownFinished(player, 0) is true:
+						if isUsingSkill(player, 0) is false:
+							if isUsingSkill(player, 2) is false:
+								if isUsingSkill(player, 3) is false:
+									체드_1(player)
+				if new changed hotbar slot is 1:
+					if isSkillCooldownFinished(player, 1) is true:
+						if isUsingSkill(player, 2) is false:
+							if isUsingSkill(player, 3) is false:
+								체드_2(player)
+				if new changed hotbar slot is 2:
+					if isSkillCooldownFinished(player, 2) is true:
+						if isUsingSkill(player, 2) is false:
+							if isUsingSkill(player, 3) is false:
+								체드_3(player)
+				if new changed hotbar slot is 3:
+					if isSkillCooldownFinished(player, 3) is true:
+						if isUsingSkill(player, 2) is false:
+							if isUsingSkill(player, 3) is false:
+								체드_4(player)
+
+			if {_char} = "인페르노":
+				if new changed hotbar slot is 0:
+					if isSkillCooldownFinished(player, 0) is true:
+						if isUsingSkill(player, 0) is false:
+							인페르노_1(player)
+				if new changed hotbar slot is 1:
+					if isSkillCooldownFinished(player, 1) is true:
+						if isUsingSkill(player, 0) is false:
+							if isUsingSkill(player, 1) is false:
+								if isUsingSkill(player, 3) is false:
+									인페르노_2(player)
+				if new changed hotbar slot is 3:
+					if isSkillCooldownFinished(player, 3) is true:
+						if isUsingSkill(player, 0) is false:
+							if isUsingSkill(player, 3) is false:
+								인페르노_4(player)
+
+			if {_char} = "마그리타":
+				if new changed hotbar slot is 0:
+					if isSkillCooldownFinished(player, 0) is true:
+						if isUsingSkill(player, 0) is false:
+							if isUsingSkill(player, 3) is false:
+								마그리타_1(player)
+				if new changed hotbar slot is 1:
+					if isSkillCooldownFinished(player, 1) is true:
+						if isUsingSkill(player, 0) is false:
+							if isUsingSkill(player, 1) is false:
+								if isUsingSkill(player, 3) is false:
+									마그리타_2(player)
+				if new changed hotbar slot is 3:
+					if isSkillCooldownFinished(player, 3) is true:
+						if isUsingSkill(player, 0) is false:
+							if isUsingSkill(player, 1) is false:
+								if isUsingSkill(player, 3) is false:
+									마그리타_4(player)
+
+		else:
+			cancel event

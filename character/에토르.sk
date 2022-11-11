@@ -1,0 +1,729 @@
+import:
+	org.bukkit.util.EulerAngle
+	java.lang.Math
+
+on script load:
+	set {에토르::체력} to 1300
+	set {에토르::이동속도} to 0.75
+	set {에토르::히트박스} to 1.2
+
+	set {에토르::평R::피해량} to 70
+	set {에토르::평R::피해감소거리} to 25
+	set {에토르::평L::직격피해량} to 100
+	set {에토르::평L::폭발피해량} to 250
+	set {에토르::평L::공격속도} to 4
+	set {에토르::평L::범위} to 3.5
+	set {에토르::평L::폭파시간} to 4
+
+	set {에토르::1::쿨타임} to 15
+	set {에토르::1::지속시간} to 20
+
+	set {에토르::2::쿨타임} to 5
+	set {에토르::2::피해량} to 220
+	set {에토르::2::피해감소거리} to 30
+
+	set {에토르::3::쿨타임} to 9
+	set {에토르::3::회복량} to 600
+	set {에토르::3::지속시간} to 1.6
+
+	set {에토르::4::충전량} to 11000
+	set {에토르::4::범위} to 5
+	set {에토르::4::지속시간} to 7
+	set {에토르::4::직격피해량} to 300
+	set {에토르::4::폭발피해량} to 700
+
+	set {에토르::점수::유탄} to 6
+	set {에토르::점수::기관총 보너스} to 10
+	set {에토르::점수::회복} to 6
+	set {에토르::점수::궁극기 보너스} to 30
+	
+	set {에토르::특성::이름1} to "철혈의 헬멧"
+	set {에토르::특성::1} to "||&f치명타 추가 피해를 받지 않습니다."
+	set {에토르::액티브::이름1} to "철통방어"
+	set {에토르::액티브::1} to "||&6⌛ 지속시간&f동안 유지되는 장벽을 세웁니다.||||&6⌛ &f20초||&f⟳ &f15초||||&7&l[1] &f설치 / 해제"
+	set {에토르::액티브::이름2} to "군주의 기상"
+	set {에토르::액티브::2} to "||&f자리에 강력한 &c⚔ 피해&f를 입히는 &7기관총&f을 설치합니다.||&f쉬프트를 눌러 장착하거나 해제할 수 있습니다.||||&f⟳ &f5초||||&7기관총||&c⚔ &f220 (30m) ~ 110 (60m)||&c⟳ &f0.15초||||&7&l[2] &f설치 / 회수 &7&l[SHIFT] &f장착 / 해제"
+	set {에토르::액티브::이름3} to "조국을 위하여!"
+	set {에토르::액티브::3} to "||&6⌛ 지속시간&f동안 보드카를 들이켜 &a✚ 회복&f합니다.||||&6⌛ &f1.6초||&a✚ &f600||&f⟳ &f9초||||&7&l[3] &f사용"
+	set {에토르::액티브::이름4} to "선전포고다!"
+	set {에토르::액티브::4} to "||&6⌛ 지속시간&f동안 강력한 &7파멸포&f를 들고 발사하여 &c⚔ 광역 피해||&f를 입힙니다.||||&6⌛ &f7초||&f⚡ &f11000||||&7파멸포||&c⚔ &f직격 300 + 폭발 700||&c✸ &f5m||&c⟳ &f0.9초||||&7&l[4] &f사용"
+function 에토르_평R_반동(player: player):
+	set {_hrecoil} to random number between -0.3 to 0.2
+	set {_vrecoil} to -1.1
+	loop 2 times:
+		if loop-number = 1:
+			if getCooldown("%{_player}'s id%-gunshot") = 0 ticks:
+				set {_hrecoil} to {_hrecoil}*2
+				set {_vrecoil} to {_vrecoil}*2
+			set {_hrecoil} to {_hrecoil}*2
+			set {_vrecoil} to {_vrecoil}*2
+		if loop-number = 2:
+			set {_hrecoil} to {_hrecoil}/2
+			set {_vrecoil} to {_vrecoil}/2
+		if getCooldown("%{_player}'s id%-gunspread") <= 0.5 seconds:
+			changeSight({_player}, {_hrecoil}/3, {_vrecoil}/3)
+		else:
+			changeSight({_player}, ({_hrecoil}-0.15)/3, {_vrecoil}/3)
+		wait 1 tick
+function 에토르_평R_효과음(player: player):
+	playSound("random.gun2.ak74_1", {_player}, 3, 1)
+	playSound("random.gun_reverb", {_player}, 5, 1.1)
+	wait 8 tick
+	playSound("entity.magmacube.jump", {_player}, 0.8, random number between 0.975 to 1.025)
+function 에토르_평R(player: player):
+	setItemCooldown({_player}, 2 ticks)
+	에토르_평R_효과음({_player})
+	에토르_평R_반동({_player})
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location of {_ploc}
+	set {_spread} to gunSpread({_player}, 7, 3.2, 3 ticks, 5 ticks)
+	set {_dir} to vSpread(getLineOfSight({_player}), {_spread})
+
+	while distance between {_ploc} and {_loc} < {Skill::MAX_RANGE}:
+		add 1 to {_i}
+		if isNonSolid({_loc}~{_dir}) is false:
+			set {__loc} to location of {_loc}
+			set {_hitloc} to {_loc}~{_dir}
+			loop 4 times:
+				if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+					set {__loc} to {__loc}~vMul({_dir}, 0.2)
+			bulletHit({__loc}, block at {_hitloc})
+			exit loop
+
+		if distance between {_ploc} and {_loc} > 0.5:
+			set {_target} to nearEnemy({_player}, {_loc}, {Skill::HITS_HITBOX})
+			if {_target} is set:
+				set {__loc} to location of {_loc}
+				loop 10 times:
+					set {__loc} to {__loc}~vMul({_dir}, 0.5)
+					if isHeadshot({__loc}, {_target}) is true:
+						set {_headshot} to true
+				exit loop
+
+		set {_loc} to {_loc}~{_dir}
+		if mod({_i}, 7) = 0:
+			particle("crit", location 0.2 right location 0.2 down {_loc}, 0, 0, 0, 0, 1)
+
+	if {_target} is set:
+		set {_dmg} to getDistantDamage(skill({_player}, "평R::피해량"), skill({_player}, "평R::피해감소거리"), distance between {_player}'s head and {_target}'s head)
+		damage({_player}, {_target}, {_dmg}, {_loc}~{_dir}, "normal-평R", "%{_headshot}%" parsed as boolean)
+function 에토르_평L_반동(player: player):
+	set {_hrecoil} to random number between -1.5 to 1.5
+	set {_vrecoil} to -7.5
+	loop 3 times:
+		if loop-number = 1:
+			set {_hr} to {_hrecoil}*3
+			set {_vr} to {_vrecoil}*3
+		if loop-number = 2:
+			set {_hr} to {_hrecoil}*2
+			set {_vr} to {_vrecoil}*2
+		if loop-number = 3:
+			set {_hr} to {_hrecoil}
+			set {_vr} to {_vrecoil}
+		changeSight({_player}, {_hr}/6, {_vr}/6)
+		wait 1 tick
+function 에토르_평L_폭발(player: player, loc: location):
+	set {_loc} to location 0.2 up {_loc}
+	playSound("entity.generic.explode", {_loc}, 4, 1)
+	playSound("random.metalhit", {_loc}, 4, 1.6)
+	playSound("entity.firework.large_blast", {_loc}, 4, 0.7)
+	playSound("random.explosion_reverb", {_loc}, 6, 1.3)
+	particle("explosionlarge", {_loc}, 0, 0, 0, 0, 1)
+	particle("smoke", {_loc}, 0.3, 0.3, 0.3, 0.3, 170)
+	particle("smokelarge", {_loc}, 0.4, 0.4, 0.4, 0.1, 100)
+	particle("lava", {_loc}, 0.6, 0.6, 0.6, 0, 50)
+	particleBlock(coal block, {_loc}, 0.5, 0.5, 0.5, 0.25, 150)
+
+	if distance between location 1 up {_player} and {_loc} < skill({_player}, "평L::범위"):
+		if canPass({_loc}, location of {_player}'s head) is true:
+			if canPassShield({_player}, {_loc}, location of {_player}'s head) is true:
+				set {_dmg} to skill({_player}, "평L::폭발피해량")
+				set {_dmg} to getDistantDamage({_dmg}, 2, distance between {_player}'s head and {_loc})
+				set {_push} to getDistantDamage(0.6, 2.5, distance between {_player}'s head and {_loc})
+				damage({_player}, {_player}, {_dmg}, {_player}, "normal-평L")
+				knockback({_player}, getLine(location 1 down {_loc}, {_player}, {_push}))
+	loop nearEnemys({_player}, {_loc}, skill({_player}, "평L::범위")):
+		if canPass({_loc}, location of loop-entity's head) is true:
+			if canPassShield({_player}, {_loc}, location of loop-entity's head) is true:
+				set {_dmg} to skill({_player}, "평L::폭발피해량")
+				set {_dmg} to getDistantDamage({_dmg}, 2, distance between loop-entity's head and {_loc})
+				set {_push} to getDistantDamage(0.6, 2.5, distance between loop-entity's head and {_loc})
+				damage({_player}, loop-entity, {_dmg}, loop-entity, "normal-평L")
+				knockback(loop-entity, getLine(location 1 down {_loc}, loop-entity, {_push}))
+function 에토르_평L(player: player):
+	setItemCooldown({_player}, 8 ticks, true)
+	setCooldown("%{_player}'s id%-평L-공격속도", parseTimespan(skill({_player}, "평L::공격속도")*20))
+	setCooldown("%{_player}'s id%-평L-폭파시간", parseTimespan(skill({_player}, "평L::폭파시간")*20))
+	에토르_평L_반동({_player})
+	playSound("random.gun.grenade", {_player}, 3, 1)
+	playSound("entity.generic.explode", {_player}, 3, 1.8)
+	playSound("random.gun_reverb", {_player}, 5, 1.2)
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location 0.2 right location 0.4 down {_ploc}
+	set {_dir} to getLineOfSight({_player})
+	set {_speed} to 40
+	set {_hit} to 0
+	set {_cooldown} to getCooldown("%{_player}'s id%-평L-폭파시간") to ticks
+
+	while distance between {_ploc} and {_loc} < {Skill::MAX_RANGE}:
+		if getChar({_player}) = "에토르":
+			add 1 to {_i}
+			if {_cooldown} <= 0:
+				exit loop
+
+			if (check [{_hit} < 5]) or isNonSolid(location 0.1 down {_loc}) is true:
+				if isNonSolid({_loc}~{_dir}) is false:
+					add 1 to {_hit}
+					set {__loc} to location of {_loc}
+					set {_hitloc} to {_loc}~{_dir}
+					loop 4 times:
+						if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+							set {__loc} to {__loc}~vMul({_dir}, 0.2)
+						else:
+							exit loop
+					playSound("random.metalhit", {__loc}, 0.1+vector length of {_dir}*2, random number between 1 to 1.1)
+					playSound("new.block.glass.break", {__loc}, 0.1+vector length of {_dir}*2, 2)
+					set {_bounce} to vector between location of block at {_hitloc} and location of block at {__loc}
+					set {_yaw} to yaw of {_bounce}
+					set {_pitch} to pitch of {_bounce}
+					if abs({_pitch}) >= 45:
+						set y of {_dir} to 0 - (y of {_dir})
+					else:
+						set {_hitdir} to floor(mod({_yaw} + 45, 360)/90)
+						if abs({_hitdir}) = 1 or 3:
+							set x of {_dir} to 0 - (x of {_dir})
+						else:
+							set z of {_dir} to 0 - (z of {_dir})
+					set vector length of {_dir} to vector length of {_dir} * 0.32
+
+				if distance between {_ploc} and {_loc} > 0.5:
+					set {_target} to nearEnemy({_player}, {_loc}, {Skill::PROJ_HITBOX})
+					if {_target} is set:
+						exit loop
+
+				set {_loc} to {_loc}~{_dir}
+				if vector length of {_dir} > 0.1:
+					add -0.00024 to vector length of {_dir}
+			else:
+				set {_target} to nearEnemy({_player}, {_loc}, {Skill::PROJ_HITBOX})
+				if {_target} is set:
+					exit loop
+			if mod({_i}, 4) = 0:
+				particleRGB({_loc}, 0.1, 0.1, 0.1, 70, 113, 54, 3)
+				particle("smoke", {_loc}, 0.1, 0.1, 0.1, 0, 2)
+			if mod({_i}/4, {_speed}/20) = 0:
+				if isNonSolid(location 0.1 down {_loc}) is true:
+					subtract 0.055/(({_speed}*4)/20) from y of {_dir}
+				subtract 1 from {_cooldown}
+				wait 1 tick
+		else:
+			exit
+
+	if {_target} is set:
+		damage({_player}, {_target}, skill({_player}, "평L::직격피해량"), {_loc}~{_dir}, "normal-평L")
+	에토르_평L_폭발({_player}, {_loc})
+function 에토르_1_발동(player: player):
+	set {_p} to location of {_player}
+	set pitch of {_p} to 0
+	teleport {_player} to {_p}
+
+	if facing of {_player} is north or south:
+		set {_loc::1} to block horizontal facing of {_player} the block -4 west {_player}
+		set {_loc::2} to block horizontal facing of {_player} the block -3 west {_player}
+		set {_loc::3} to block horizontal facing of {_player} the block -2 west {_player}
+		set {_loc::4} to block horizontal facing of {_player} the block -1 west {_player}
+		set {_loc::5} to block horizontal facing of {_player} the block 0 west {_player}
+		set {_loc::6} to block horizontal facing of {_player} the block 1 west {_player}
+		set {_loc::7} to block horizontal facing of {_player} the block 2 west {_player}
+		set {_loc::8} to block horizontal facing of {_player} the block 3 west {_player}
+		set {_loc::9} to block horizontal facing of {_player} the block 4 west {_player}
+	if facing of {_player} is east or west:
+		set {_loc::1} to block horizontal facing of {_player} the block -4 south {_player}
+		set {_loc::2} to block horizontal facing of {_player} the block -3 south {_player}
+		set {_loc::3} to block horizontal facing of {_player} the block -2 south {_player}
+		set {_loc::4} to block horizontal facing of {_player} the block -1 south {_player}
+		set {_loc::5} to block horizontal facing of {_player} the block 0 south {_player}
+		set {_loc::6} to block horizontal facing of {_player} the block 1 south {_player}
+		set {_loc::7} to block horizontal facing of {_player} the block 2 south {_player}
+		set {_loc::8} to block horizontal facing of {_player} the block 3 south {_player}
+		set {_loc::9} to block horizontal facing of {_player} the block 4 south {_player}
+
+	loop 9 times:
+		delete {_pass}
+		if canPass(location 1 horizontally forwards location 1 up {_player}, location of {_loc::%loop-number%}) is true:
+			set {_pass} to true
+		if canPass(location 1 horizontally forwards location 2 up {_player}, location of {_loc::%loop-number%}) is true:
+			set {_pass} to true
+		if canPass(location 1 horizontally forwards location 3 up {_player}, location of {_loc::%loop-number%}) is true:
+			set {_pass} to true
+		if {_pass} is true:
+			set {_s::%loop-number%} to location of {_loc::%loop-number%}
+
+	loop 9 times:
+		if block at {_s::%loop-number%} is air:
+			set block at {_s::%loop-number%} to green concrete
+			add location at {_s::%loop-number%} to {-%{_player}%.bl::*}
+		if block up {_s::%loop-number%} is air:
+			set block up {_s::%loop-number%} to green concrete
+			add location up {_s::%loop-number%} to {-%{_player}%.bl::*}
+		if block 2 up {_s::%loop-number%} is air:
+			set block 2 up {_s::%loop-number%} to green concrete
+			add location 2 up {_s::%loop-number%} to {-%{_player}%.bl::*}
+		if block 3 up {_s::%loop-number%} is air:
+			set block 3 up {_s::%loop-number%} to cobweb
+			add location 3 up {_s::%loop-number%} to {-%{_player}%.bl::*}
+
+	loop 20 times:
+		if getChar({_player}) = "에토르":
+			if isUsingSkill({_player}, 0) is true:
+				wait 1 second
+			else:
+				exit loop
+
+	set blocks at {-%{_player}%.bl::*} to air
+	delete {-%{_player}%.bl::*}
+function 에토르_1(player: player):
+	if isUsingSkill({_player}, 0) is false:
+		if "%facing of {_player}%" is not "above" or "below":
+			set {_ploc} to location of {_player}
+			set {_loc} to location 1 horizontally forwards location 0.1 up {_player}
+			set {_loc2} to location 1 horizontally forwards location 0.25 down {_player}
+
+			if (check [isNonSolid({_loc}) is false]) or isNonSolid({_loc2}) is true:
+				alert({_player}, "설치가 불가능한 위치입니다.")
+				exit
+			setSkillDuration({_player}, 0, -1)
+			setItemCooldown({_player}, 30 ticks, true)
+			playSound("entity.cat.purreow", {_player}, 1, 1.8)
+			set {_facing} to "%facing of {_player}%"
+
+			loop 30 times:
+				if getChar({_player}) = "에토르":
+					setCooldown("%{_player}'s id%-stop", 2 ticks)
+					if vector length of velocity of {_player} < 0.1:
+						teleport({_player}, {_ploc})
+					if loop-number = 4:
+						playSound("new.block.barrel.open", {_player}, 1, 0.8)
+					if loop-number = 12:
+						playSound("entity.horse.armor", {_player}, 1, 1.4)
+					if loop-number = 18:
+						playSound("random.craft", {_player}, 1, 1)
+					if loop-number = 25:
+						playSound("new.block.barrel.close", {_player}, 1, 0.9)
+					wait 1 tick
+
+					if (check ["%location of {_player}%" != "%{_ploc}%"]) is true:
+						alert({_player}, "움직여서 사용이 취소되었습니다.")
+						setSkillCooldown({_player}, 0, 1)
+						setItemCooldown({_player}, 0 ticks, true)
+						exit
+					if isStunned({_player}) is true:
+						set {_exit} to true
+						exit loop
+
+			if getChar({_player}) = "에토르":
+				if {_exit} is not set:
+					setSkillDuration({_player}, 0, rounded skill({_player}, "1::지속시간"), rounded skill({_player}, "1::쿨타임"))
+					setCooldown("%{_player}'s id%-1-지속시간", parseTimespan(skill({_player}, "1::지속시간")*20))
+					에토르_1_발동({_player})
+					playSound("entity.player.hurt", {_player}, 1.5, 0.6)
+					playSound("block.iron_door.close", {_player}, 1.5, 0.5)
+					playSound("entity.irongolem.hurt", {_player}, 1.5, 0.5)
+				else:
+					setSkillCooldown({_player}, 0, rounded skill({_player}, "1::쿨타임"))
+					setItemCooldown({_player}, 0 ticks, true)
+		else:
+			alert({_player}, "정면을 보고 사용하십시오.")
+	else:
+		setSkillCooldown({_player}, 0, rounded skill({_player}, "1::쿨타임"))
+		setCooldown("%{_player}'s id%-1-지속시간", 0 ticks)
+		set blocks at {-%{_player}%.bl::*} to air
+		delete {-%{_player}%.bl::*}
+function 에토르_2_효과음(player: player):
+	setItemCooldown({_player}, 3 ticks)
+	set {_mob} to getMetadata({_player}, "2-개체")
+	set {_loc} to location 2.35 forwards location 1.3 up {_mob}
+	playSound("random.gun2.rpk_1", {_loc}, 4, 0.9)
+	playSound("random.gun2.k1a_1", {_loc}, 4, 0.8)
+	playSound("random.gun2.gatling_1", {_loc}, 4, 1.2)
+	playSound("random.gun2.gatling_1", {_loc}, 4, 0.9)
+	playSound("random.gun_reverb", {_loc}, 6, 0.8)
+	playSound("random.gun_reverb2", {_loc}, 6, 0.8)
+	wait 8 tick
+	playSound("entity.magmacube.jump", {_loc}, 1, random number between 0.575 to 0.625)
+
+	loop 20 times:
+		if getCooldown("%{_player}'s id%-gunshot") = 0 ticks:
+			if getMetadata({_player}, "2-장착") is true:
+				set {_loc} to location 2.35 forwards location 1.3 up {_mob}
+				particleRGB({_loc}, 0, 0, 0, 160, 160, 160, 1)
+				wait 2 tick
+			else:
+				exit
+		else:
+			exit
+function 에토르_2_발동(player: player):
+	에토르_2_효과음({_player})
+	set {_mob} to getMetadata({_player}, "2-개체")
+	set {_ploc} to location 2.35 forwards location 1.3 up {_mob}
+	set {_loc} to location of {_ploc}
+	set {_spread} to gunSpread({_player}, 8, 2.4, 4 ticks, 4 ticks)
+	set {_dir} to vSpread(getLineOfSight({_mob}), {_spread})
+	particle("flame", {_loc}, 0, 10, 0, 25, 0)
+	particle("flame", location 0.1 left location 0.1 up {_loc}, 0, 10, 0, 25, 0)
+	particle("flame", location -0.1 left location 0.1 up {_loc}, 0, 10, 0, 25, 0)
+	particle("flame", location 0.1 left location -0.1 up {_loc}, 0, 10, 0, 25, 0)
+	particle("flame", location -0.1 left location -0.1 up {_loc}, 0, 10, 0, 25, 0)
+
+	while distance between {_ploc} and {_loc} < {Skill::MAX_RANGE}:
+		add 1 to {_i}
+		if isNonSolid({_loc}~{_dir}) is false:
+			set {__loc} to location of {_loc}
+			set {_hitloc} to {_loc}~{_dir}
+			loop 4 times:
+				if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+					set {__loc} to {__loc}~vMul({_dir}, 0.2)
+			bulletHit({__loc}, block at {_hitloc})
+			meleeHit({__loc}, block at {_hitloc}, false, false)
+			exit loop
+
+		set {_target} to nearEnemy({_player}, {_loc}, {Skill::HITS_HITBOX})
+		if {_target} is set:
+			exit loop
+
+		set {_loc} to {_loc}~{_dir}
+		if mod({_i}, 6) = 0:
+			particle("crit", {_loc}, 0, 0, 0, 0, 1)
+
+	if {_target} is set:
+		set {_dmg} to getDistantDamage(skill({_player}, "2::피해량"), skill({_player}, "2::피해감소거리"), distance between {_player}'s head and {_target}'s head)
+		damage({_player}, {_target}, {_dmg}, {_loc}~{_dir}, "normal-2")
+function 에토르_2_장착(player: player, mob: entity, instant: boolean=false):
+	if getMetadata({_player}, "2-장착") is not set:
+		setMetadata({_player}, "2-장착", true)
+		if {_instant} is false:
+			setItemCooldown({_player}, 12 ticks, true)
+			playSound("entity.villager.yes", {_player}, 1.5, 0.6)
+
+			loop 12 times:
+				if getChar({_player}) = "에토르":
+					setCooldown("%{_player}'s id%-stop", 2 ticks)
+					if loop-number = 8:
+						playSound("block.piston.extend", {_player}, 1.5, 1.8)
+					wait 1 tick
+
+					if distance between {_player} and {_mob} > 1.5:
+						resetMetadata({_player}, "2-장착")
+						exit
+					if isStunned({_player}) is true:
+						resetMetadata({_player}, "2-장착")
+						exit
+		if {_mob} is alive:
+			if getChar({_player}) = "에토르":
+				set {_L} to getMetadata({_player}, "2-위치")
+				set yaw of {_L} to yaw of {_player}
+				set pitch of {_L} to pitch of {_player}
+				teleport {_player} to {_L}
+				set {_ploc} to location of {_player}
+				setMetadata({_player}, "무기", 1 of slot 4 of {_player})
+				if getMetadata({_player}, "2-무기") is not set:
+					setMetadata({_player}, "2-무기", 1 of {hln-11m_})
+				set {_weapon} to getMetadata({_player}, "2-무기")
+				set slot 4 of {_player} to {_weapon}
+				{_mob}.setGravity(false)
+
+			while getMetadata({_player}, "2-장착") is true:
+				if getChar({_player}) = "에토르":
+					if isUsingSkill({_player}, 1) is false:
+						exit loop
+					set {_pitch} to {_player}'s pitch
+					if {_pitch} > 30:
+						set {_pitch} to 30
+					if {_pitch} < -30:
+						set {_pitch} to -30
+					set {_p} to location of {_player}
+					set pitch of {_p} to {_pitch}
+					set {_loc} to location 0.1 horizontally forwards location 0.1 up {_p}
+					set {_loc2} to location 2.5 horizontally forwards location 0.1 up {_p}
+					set {_loc3} to location 0.3 horizontally forwards location 0.25 down {_p}
+					set {_loc4} to location 1.5 horizontally forwards location 0.25 down {_p}
+					if (check [isNonSolid({_loc}) is true] -> [canPass({_ploc}, {_loc2}) is true] -> [isNonSolid({_loc3}) is false] -> [isNonSolid({_loc4}) is false]) is true:
+						teleport {_mob} to {_loc}
+						{_mob}.setLeftArmPose(new EulerAngle(Math.toRadians({_pitch}-90), 0, 0))
+						{_mob}.setRightArmPose(new EulerAngle(Math.toRadians({_pitch}-90), 0, 0))
+					setCooldown("%{_player}'s id%-stop", 2 ticks)
+					wait 1 tick
+
+					if distance between {_ploc} and {_player} > 0.5:
+						exit loop
+				else:
+					exit loop
+
+			if getChar({_player}) = "에토르":
+				if getMetadata({_player}, "2-장착") is true:
+					에토르_2_장착({_player}, {_mob}, true)
+	else:
+		if {_instant} is false:
+			setItemCooldown({_player}, 6 ticks, true)
+			playSound("entity.villager.no", {_player}, 1.5, 0.6)
+
+			loop 6 times:
+				if getChar({_player}) = "에토르":
+					setCooldown("%{_player}'s id%-stop", 2 ticks)
+					if loop-number = 4:
+						playSound("block.piston.contract", {_player}, 1.5, 1.8)
+					wait 1 tick
+
+					if distance between {_player} and {_mob} > 1.5:
+						exit loop
+					if isStunned({_player}) is true:
+						exit loop
+
+		if getChar({_player}) = "에토르":
+			resetMetadata({_player}, "2-장착")
+			setMetadata({_player}, "2-무기", 1 of slot 4 of {_player})
+			set {_weapon} to getMetadata({_player}, "무기")
+			set slot 4 of {_player} to {_weapon}
+			{_mob}.setGravity(true)
+			{_mob}.setLeftArmPose(new EulerAngle(Math.toRadians(270), 0, 0))
+			{_mob}.setRightArmPose(new EulerAngle(Math.toRadians(270), 0, 0))
+function 에토르_2(player: player):
+	if isUsingSkill({_player}, 1) is false:
+		set {_ploc} to location of {_player}
+		set {_loc} to location 0.1 horizontally forwards location 0.1 up {_player}
+		set {_loc2} to location 2.5 horizontally forwards location 0.1 up {_player}
+		set {_loc3} to location 0.3 horizontally forwards location 0.25 down {_player}
+		set {_loc4} to location 1.5 horizontally forwards location 0.25 down {_player}
+
+		if (check [isNonSolid({_loc}) is false]) or (check [canPass({_ploc}, {_loc2}) is false]) or isNonSolid({_loc3}) or isNonSolid({_loc4}) is true:
+			alert({_player}, "설치가 불가능한 위치입니다.")
+			exit
+		setSkillDuration({_player}, 1, -1)
+		setItemCooldown({_player}, 50 ticks, true)
+		(getMetadata({_player}, "2-개체")).remove()
+
+		loop 50 times:
+			if getChar({_player}) = "에토르":
+				setCooldown("%{_player}'s id%-stop", 3 ticks)
+				if vector length of velocity of {_player} < 0.1:
+					teleport({_player}, {_ploc})
+				if loop-number = 2:
+					playSound("entity.player.hurt", {_player}, 1.5, 0)
+				if loop-number = 10:
+					playSound("block.piston.extend", {_player}, 1.5, 0.6)
+				if loop-number = 15:
+					playSound("entity.cat.hiss", {_player}, 1.5, 0.8)
+				if loop-number = 22:
+					playSound("entity.villager.yes", {_player}, 1.5, 0.8)
+				if loop-number = 30:
+					playSound("entity.wolf.howl", {_player}, 1.5, 0.8)
+				if loop-number = 34:
+					playSound("entity.wolf.shake", {_player}, 1.5, 0.8)
+				if loop-number = 40:
+					playSound("item.flintandsteel.use", {_player}, 1.5, 0.7)
+				if loop-number = 45:
+					playSound("block.piston.contract", {_player}, 1.5, 0.6)
+				wait 1 tick
+
+				if (check ["%location of {_player}%" != "%{_ploc}%"]) is true:
+					alert({_player}, "움직여서 사용이 취소되었습니다.")
+					setSkillCooldown({_player}, 1, 1)
+					setItemCooldown({_player}, 0 ticks, true)
+					exit
+				if isStunned({_player}) is true:
+					set {_exit} to true
+					exit loop
+
+		if getChar({_player}) = "에토르":
+			if {_exit} is not set:
+				spawn an armor stand at {_loc}
+				set {_mob} to spawned armor stand
+				set name of spawned armor stand to "&b%{_player}%"
+				apply invisibility of tier 1 without particles to {_mob} for 1 days
+				setTeam({_mob}, getTeam({_player}))
+				setMetadata({_mob}, "owner", {_player})
+				setMetadata({_mob}, "mobType", "기관총")
+				setMetadata({_mob}, "small", true)
+				setMetadata({_player}, "2-개체", {_mob})
+				setMetadata({_player}, "2-위치", location of {_player})
+				entityTick({_mob})
+				wait 1 tick
+				{_mob}.setSilent(true)
+				{_mob}.setVisible(false)
+				{_mob}.setGravity(false)
+				{_mob}.setLeftArmPose(new EulerAngle(Math.toRadians(270), 0, 0))
+				{_mob}.setRightArmPose(new EulerAngle(Math.toRadians(270), 0, 0))
+				set {_mob}'s tool to {hln-11m}
+				에토르_2_장착({_player}, {_mob}, true)
+				# setGlowing({_mob}, {_player}, "white")
+				createHologram("%{_mob}'s id%", {_loc}, "&b&l기관총||&e&l[SHIFT] &f장착", false)
+				bindHologram("%{_mob}'s id%", {_mob}, 0, 2.4, 0)
+				showHologram("%{_mob}'s id%", true, {_player})
+			else:
+				setSkillCooldown({_player}, 1, rounded skill({_player}, "2::쿨타임"))
+				setItemCooldown({_player}, 0 ticks, true)
+	else:
+		setSkillCooldown({_player}, 1, rounded skill({_player}, "2::쿨타임"))
+		set {_mob} to getMetadata({_player}, "2-개체")
+		deleteHologram("%{_mob}'s id%")
+		if getMetadata({_player}, "2-장착") is true:
+			에토르_2_장착({_player}, {_mob}, true)
+			playSound("block.piston.contract", {_player}, 1.5, 1.8)
+		resetMetadata({_player}, "2-무기")
+		particle("explosion", location 1 up location 1.5 forwards {_mob}, 0.4, 0.4, 0.4, 0.05, 25)
+		{_mob}.remove()
+function 에토르_3(player: player):
+	setSkillDuration({_player}, 2, -1)
+	setItemCooldown({_player}, 52 ticks, true)
+	set {_loc} to location of {_player}
+
+	loop 20 times:
+		if getChar({_player}) = "에토르":
+			setCooldown("%{_player}'s id%-nojump", 2 ticks)
+			setCooldown("%{_player}'s id%-nosprint", 2 ticks)
+			if loop-number = 6:
+				playSound("new.block.barrel.open", {_player}, 0.7, 1.2)
+			if loop-number = 15:
+				playSound("entity.horse.armor", {_player}, 0.7, 1.4)
+			wait 1 tick
+			if isStunned({_player}) is true:
+				set {_exit} to true
+				exit loop
+
+	if getChar({_player}) = "에토르":
+		if {_exit} is not set:
+			setCooldown("%{_player}'s id%-3-지속시간", parseTimespan(skill({_player}, "3::지속시간")*20))
+			set {_weapon} to slot 4 of {_player}
+			set slot 4 of {_player} to 1 of {보드카}
+
+			loop skill({_player}, "3::지속시간")*20 times:
+				if getChar({_player}) = "에토르":
+					if name of slot 4 of {_player} doesn't contain "보드카":
+						setItemCooldown({_player}, 0 ticks, true)
+						exit loop
+					setCooldown("%{_player}'s id%-nojump", 2 ticks)
+					setCooldown("%{_player}'s id%-nosprint", 2 ticks)
+					particleRGB(location 1 up {_player}, 1, 1, 1, 170, 180, 120, 4)
+					heal({_player}, {_player}, skill({_player}, "3::회복량")/(skill({_player}, "3::지속시간")*20), {에토르::점수::회복}/skill({_player}, "3::지속시간")/20)
+					if loop-number = 3 or 11 or 19 or 27:
+						playSound("new.item.honey_bottle.drink", {_player}, 0.7, random number between 0.95 to 1.05)
+					wait 1 tick
+					if isStunned({_player}) is true:
+						exit loop
+
+			if getChar({_player}) = "에토르":
+				setSkillCooldown({_player}, 2, rounded skill({_player}, "3::쿨타임"))
+				if name of slot 4 of {_player} contains "보드카":
+					set slot 4 of {_player} to {_weapon}
+					setItemCooldown({_player}, 0 ticks, true)
+		else:
+			setSkillCooldown({_player}, 2, rounded skill({_player}, "3::쿨타임"))
+			setItemCooldown({_player}, 0 ticks, true)
+function 에토르_4_반동(player: player):
+	set {_hrecoil} to random number between -2.4 to 2.4
+	set {_vrecoil} to -10
+	loop 3 times:
+		if loop-number = 1:
+			set {_hr} to {_hrecoil}*3
+			set {_vr} to {_vrecoil}*3
+		if loop-number = 2:
+			set {_hr} to {_hrecoil}*2
+			set {_vr} to {_vrecoil}*2
+		if loop-number = 3:
+			set {_hr} to {_hrecoil}
+			set {_vr} to {_vrecoil}
+		changeSight({_player}, {_hr}/6, {_vr}/6)
+		wait 1 tick
+function 에토르_4_발동(player: player):
+	setItemCooldown({_player}, 18 ticks)
+	에토르_4_반동({_player})
+	playSound("block.lava.extinguish", {_player}, 3, 0.6)
+	playSound("entity.wither.shoot", {_player}, 3, 0)
+	playSound("entity.ghast.shoot", {_player}, 3, 0)
+	playSound("entity.ghast.shoot", {_player}, 3, 0.7)
+	playSound("random.gun_reverb2", {_player}, 5, 0.6)
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location 0.2 right location 0.4 down {_ploc}
+	set {_dir} to getLineOfSight({_player})
+	set {_speed} to 75
+
+	while distance between {_ploc} and {_loc} < {Skill::MAX_RANGE}:
+		if getChar({_player}) = "에토르":
+			add 1 to {_i}
+			if isNonSolid({_loc}~{_dir}) is false:
+				exit loop
+
+			if distance between {_ploc} and {_loc} > 0.5:
+				set {_target} to nearEnemy({_player}, {_loc}, {Skill::PROJ_HITBOX})
+				if {_target} is set:
+					exit loop
+
+			set {_loc} to {_loc}~{_dir}
+			if mod({_i}, 5) = 0:
+				particleRGB({_loc}, 0.1, 0.1, 0.1, 30, 30, 30, 3)
+				particle("smoke", {_loc}, 0.1, 0.1, 0.1, 0, 3)
+			if mod({_i}/4, {_speed}/20) = 0:
+				wait 1 tick
+		else:
+			exit
+
+	playSound("random.explosion", {_loc}, 5, 1.1)
+	playSound("random.explosion_reverb", {_loc}, 7, 1)
+	playSound("random.explosion_reverb", {_loc}, 7, 0.7)
+	particle("explosionlarge", {_loc}, 0.8, 0.8, 0.8, 0, 6)
+	particle("smoke", {_loc}, 0.4, 0.4, 0.4, 0.35, 300)
+	particle("smokelarge", {_loc}, 0.5, 0.5, 0.5, 0.15, 160)
+	particle("lava", {_loc}, 0.8, 0.8, 0.8, 0, 80)
+	particleBlock(coal block, {_loc}, 0.8, 0.8, 0.8, 0.4, 300)
+
+	if {_target} is set:
+		damage({_player}, {_target}, skill({_player}, "4::직격피해량"), {_loc}~{_dir}, "normal-4", false, false)
+	if distance between location 1 up {_player} and {_loc} < skill({_player}, "4::범위"):
+		if canPass({_loc}, location of {_player}'s head) is true:
+			if canPassShield({_player}, {_loc}, location of {_player}'s head) is true:
+				set {_dmg} to skill({_player}, "4::폭발피해량")
+				set {_dmg} to getDistantDamage({_dmg}, 2, distance between {_player}'s head and {_loc})
+				set {_push} to getDistantDamage(1, 2.5, distance between {_player}'s head and {_loc})
+				damage({_player}, {_player}, {_dmg}, {_player}, "normal-4", false, false)
+				knockback({_player}, getLine(location 1 down {_loc}, {_player}, {_push}))
+	loop nearEnemys({_player}, {_loc}, skill({_player}, "4::범위")):
+		if canPass({_loc}, location of loop-entity's head) is true:
+			if canPassShield({_player}, {_loc}, location of loop-entity's head) is true:
+				set {_dmg} to skill({_player}, "4::폭발피해량")
+				set {_dmg} to getDistantDamage({_dmg}, 2, distance between loop-entity's head and {_loc})
+				set {_push} to getDistantDamage(1, 2.5, distance between loop-entity's head and {_loc})
+				damage({_player}, loop-entity, {_dmg}, loop-entity, "normal-4", false, false)
+				knockback(loop-entity, getLine(location 1 down {_loc}, loop-entity, {_push}))
+function 에토르_4(player: player):
+	setSkillDuration({_player}, 3, -1)
+	setItemCooldown({_player}, 24 ticks, true)
+	useUlt({_player})
+
+	loop 24 times:
+		if getChar({_player}) = "에토르":
+			setCooldown("%{_player}'s id%-stop", 2 ticks)
+			if loop-number = 6:
+				playSound("new.block.barrel.open", {_player}, 1.5, 0.7)
+			if loop-number = 10:
+				playSound("entity.horse.armor", {_player}, 1.5, 0.7)
+			if loop-number = 16:
+				playSound("entity.cat.purreow", {_player}, 1.5, 0.6)
+			wait 1 tick
+			if isStunned({_player}) is true:
+				set {_exit} to true
+				exit loop
+
+	if getChar({_player}) = "에토르":
+		if {_exit} is not set:
+			setSkillDuration({_player}, 3, rounded skill({_player}, "4::지속시간"))
+			setCooldown("%{_player}'s id%-4-지속시간", parseTimespan(skill({_player}, "4::지속시간")*20))
+			set slot 4 of {_player} to gun "에토르_파멸포" with no nbt
+
+			loop skill({_player}, "4::지속시간")*20+1 times:
+				if getChar({_player}) = "에토르":
+					wait 1 tick
+
+			if getChar({_player}) = "에토르":
+				set slot 4 of {_player} to getWeapon("에토르")
+		else:
+			setSkillCooldown({_player}, 3, -1)

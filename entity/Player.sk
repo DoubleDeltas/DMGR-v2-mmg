@@ -1,0 +1,256 @@
+import:
+	java.util.Arrays
+	java.util.HashSet
+	org.bukkit.Bukkit
+	org.bukkit.scoreboard.Team
+	org.bukkit.scoreboard.Team$Option
+	org.bukkit.scoreboard.NameTagVisibility
+	org.bukkit.scoreboard.Team$OptionStatus
+	org.bukkit.plugin.java.JavaPlugin
+	com.shampaggon.crackshot.CSDirector
+	com.shampaggon.crackshot.CSMinion
+	org.golde.bukkit.corpsereborn.CorpseAPI.CorpseAPI
+	net.minecraft.server.v1_12_R1.PacketPlayOutPosition
+	net.minecraft.server.v1_12_R1.PacketPlayOutPosition$EnumPlayerTeleportFlags
+	net.minecraft.server.v1_12_R1.PacketPlayOutSpawnEntityLiving
+	net.minecraft.server.v1_12_R1.PacketPlayOutEntityDestroy
+	net.minecraft.server.v1_12_R1.PacketPlayOutScoreboardTeam
+	me.DeeCaaD.CrackShotPlus.Packets.SetupVersion_1_12_R1
+	net.minecraft.server.v1_12_R1.EntityArmorStand
+variables:
+	{Player::BASE_SPEED} = 0.23
+
+#!! 궁극기 게이지
+function setUlt(player: player, amount: number):
+	if {_amount} >= 1:
+		set level progress of {_player} to 0.999
+	else:
+		set level progress of {_player} to {_amount}
+	set level of {_player} to rounded level progress of {_player}*100
+function addUlt(player: player, amount: number):
+	if level progress of {_player}+{_amount} >= 1:
+		set level progress of {_player} to 0.999
+		set level of {_player} to 100
+	else:
+		add {_amount} to level progress of {_player}
+		set level of {_player} to level progress of {_player}*100
+function getUlt(player: player) :: number:
+	if level progress of {_player} > 0.998:
+		return 1
+	return level progress of {_player}
+#!! 궁극기 사용
+function useUlt(player: player, text: text=""):
+	setUlt({_player}, 0)
+	playSound("entity.wither.spawn", {_player}, 10, 2)
+#!! 보호막
+function addShield(player: player, name: text, amount: number, max: number=5000):
+	if {-%{_player}%.shield::%{_name}%}+{_amount} > {_max}:
+		subtract ({-%{_player}%.shield::%{_name}%}+{_amount})-{_max} from {_amount}
+	if {-%{_player}%.shield::%{_name}%}+{_amount} < 0:
+		subtract ({-%{_player}%.shield::%{_name}%}+{_amount}) from {_amount}
+
+	add {_amount}*0.02 to absorption hearts of {_player}
+	add {_amount} to {-%{_player}%.shield::%{_name}%}
+
+	if {-%{_player}%.shield::%{_name}%} <= 0:
+		set absorption hearts of {_player} to 0
+		delete {-%{_player}%.shield::%{_name}%}
+function getShield(player: player, name: text) :: number:
+	if {-%{_player}%.shield::%{_name}%} is not set:
+		return 0
+	return {-%{_player}%.shield::%{_name}%}
+function getShields(player: player) :: texts:
+	loop {-%{_player}%.shield::*}:
+		add loop-index to {_shield::*}
+	return {_shield::*}
+function resetShields(player: player):
+	set absorption hearts of {_player} to 0
+	delete {-%{_player}%.shield::*}
+#!! 달리기 토글
+#! ISSUE : Allow sprint is not working for fly-able characters
+function allowSprint(player: player, allow: boolean):
+	set {_packet} to new play_server_update_health packet
+	set float pnum 0 of {_packet} to {_player}'s health*2
+	if {_allow} is true:
+		set int pnum 0 of {_packet} to 19
+	else if {_allow} is false:
+		set int pnum 0 of {_packet} to 2
+	send packet {_packet} to {_player}
+#!! 달리기 가능 확인
+function isSprintable(player: player) :: boolean:
+	if {-%{_player}%.zoom} is not set:
+		if parseNumber("%getMetadata({_player}, "freeze")%") < 50:
+			if getCooldown("%{_player}'s id%-leash") = 0 ticks:
+				if getCooldown("%{_player}'s id%-stop") = 0 ticks:
+					if getCooldown("%{_player}'s id%-nosprint") = 0 ticks:
+						if isStunned({_player}) is false:
+							return true
+	return false
+#!! 점프 가능 확인
+function isJumpable(player: player) :: boolean:
+	if parseNumber("%getMetadata({_player}, "freeze")%") < 75:
+		if getCooldown("%{_player}'s id%-leash") = 0 ticks:
+			if getCooldown("%{_player}'s id%-stun") = 0 ticks:
+				if getCooldown("%{_player}'s id%-stop") = 0 ticks:
+					if getCooldown("%{_player}'s id%-nojump") = 0 ticks:
+						if isStunned({_player}) is false:
+							return true
+	return false
+#!! 플라이 가능 확인
+function isFlyable(player: player) :: boolean:
+	set {_char} to getChar({_player})
+	if {_char} = "실리아" or "체드":
+		if getCooldown("%{_player}'s id%-airjump") = 0 ticks:
+			if getCooldown("%{_player}'s id%-nojump") = 0 ticks:
+				if getCooldown("%{_player}'s id%-leash") = 0 ticks:
+					if isStunned({_player}) is false:
+						return true
+	return false
+#!! 초기화
+function resetPlayer(player: player):
+	set {_pname} to "%{_player}%"
+	if {_player}'s gamemode is spectator:
+		set {_player}'s gamemode to survival
+	clear {_player}'s inventory
+	set flight state of {_player} to false
+	set sneak state of {_player} to false
+	set {_player}'s max health to 10
+	set {_player}'s health to 10
+	set {_player}'s walk speed to 0.2
+	set {_player}'s hunger meter to 10
+	setUlt({_player}, 0)
+	setCooldown("%{_player}'s id%-nojump", 0 ticks)
+	setCooldown("%{_player}'s id%-nosprint", 0 ticks)
+	setCooldown("%{_player}'s id%-nomelee", 0 ticks)
+	setMetadata({_player}, "hitboxMul", 1)
+	resetShields({_player})
+	resetMetadata({_player}, "char")
+	resetMetadata({_player}, "team")
+	resetMetadata({_player}, "sprint")
+	delete stylish scoreboard "game-%{_player}'s id%"
+	deleteHologram("%{_player}'s id%-game")
+	execute console command "/skin clear %{_player}%"
+	set time of parsePlayer({_pname}) to time of parsePlayer({_pname})'s world
+	loop all entities:
+		if getMetadata(loop-entity, "owner") = {_player}:
+			deleteHologram("%loop-entity's id%")
+			delete loop-entity
+	{-tabbed}.destroyTabList({_player})
+	wait 1 second
+	remove speed from {_player}
+	remove invisibility from {_player}
+	remove haste from {_player}
+	remove weakness from {_player}
+	remove mining fatigue from {_player}
+	remove jump boost from {_player}
+	remove night vision from {_player}
+	remove water breathing from {_player}
+#!! 시체 생성
+function createCorpse(player: player, loc: location, duration: timespan):
+	set {_hand} to 1 of tool of {_player}
+	set {_offhand} to 1 of offhand tool of {_player}
+	set {_corpse} to CorpseAPI.spawnCorpse({_player}, null, {_loc}, {_player}.getInventory().getContents(), null, null, null, null, {_hand}, {_offhand}, random integer between 0 to 3)
+	wait {_duration}
+	CorpseAPI.removeCorpse({_corpse})
+#!! 전투원
+function getChar(player: player) :: text:
+	return metadata "char" of {_player}
+function setChar(player: player, char: text):
+	setMetadata({_player}, "char", {_char})
+	setMetadata({_player}, "baseSpeed", skill({_player}, "이동속도"))
+	setMetadata({_player}, "bonusSpeed", 0)
+	setMetadata({_player}, "hitboxMul", 1)
+	resetMetadata({_player}, "sprint")
+	resetMetadata({_player}, "skillp1")
+	resetMetadata({_player}, "skillp2")
+	resetMetadata({_player}, "skill1")
+	resetMetadata({_player}, "skill2")
+	resetMetadata({_player}, "skill3")
+	resetMetadata({_player}, "skill4")
+	setCooldown("%{_player}'s id%-restore", 10 ticks)
+	setMaxHealth({_player}, skill({_player}, "체력"))
+	setHealth({_player}, skill({_player}, "체력"))
+	setUlt({_player}, 0)
+	setCooldown("%{_player}'s id%-nojump", 0 ticks)
+	setCooldown("%{_player}'s id%-nosprint", 0 ticks)
+	setCooldown("%{_player}'s id%-nomelee", 0 ticks)
+	resetShields({_player})
+	set sneak state of {_player} to false
+	set fly state of {_player} to false
+	remove weakness from {_player}
+	remove jump boost from {_player}
+	remove invisibility from {_player}
+	remove haste from {_player}
+	remove mining fatigue from {_player}
+	remove speed from {_player}
+	set slot 9 of {_player} to light green glass pane named "&a&l치료 요청"
+	set slot 10 of {_player} to light green glass pane named "&a&l궁극기 상태"
+	set slot 11 of {_player} to light green glass pane named "&a&l집결 요청"
+	set slot 4 of {_player} to getWeapon({_char})
+	setHotbarSlot({_player}, 4)
+	loop all entities:
+		if getMetadata(loop-entity, "owner") = {_player}:
+			deleteHologram("%loop-entity's id%")
+			delete loop-entity
+
+	if {_char} is "아케이스":
+		execute console command "skin set %{_player}% DVArkace"
+	if {_char} is "예거":
+		execute console command "skin set %{_player}% DVJager"
+		setMetadata({_player}, "1-체력", skill({_player}, "1::체력"))
+	if {_char} is "퀘이커":
+		execute console command "skin set %{_player}% DVQuaker"
+		setMetadata({_player}, "1-내구도", skill({_player}, "1::내구도"))
+	if {_char} is "실리아":
+		execute console command "skin set %{_player}% DVSilia"
+	if {_char} is "니스":
+		execute console command "skin set %{_player}% DVNis"
+	if {_char} is "에토르":
+		execute console command "skin set %{_player}% DVEtor"
+	if {_char} is "페르델":
+		execute console command "skin set %{_player}% DVPerdel"
+	if {_char} is "체드":
+		execute console command "skin set %{_player}% DVChed"
+		setMetadata({_player}, "S2-충전량", skill({_player}, "S2::충전량"))
+		set slot 21 of {_player} to arrow
+	if {_char} is "인페르노":
+		execute console command "skin set %{_player}% DVInferno"
+	if {_char} is "마그리타":
+		execute console command "skin set %{_player}% DVMagrita"
+
+	resetSkill({_player})
+#!! 게임 모드
+function getGame(player: player) :: number:
+	return metadata "game" of {_player}
+function setGame(player: player, game: number):
+	setMetadata({_player}, "game", {_game})
+#!! 핫바 슬롯
+function getHotbarSlot(player: player) :: number:
+	return index of current hotbar slot of {_player}
+function setHotbarSlot(player: player, slot: integer):
+	set current hotbar slot of {_player} to slot {_slot} of {_player}
+#!! 시점 변경
+function changeSight(player: player, yaw: number, pitch: number, relative: boolean=true):
+	if {_relative} is true:
+		set {_sv} to new SetupVersion_1_12_R1()
+		{_sv}.cameraRecoil({_player}, {_yaw}+0, {_pitch}+0)
+	else:
+		set {_flags} to new HashSet(Arrays.asList(EnumPlayerTeleportFlags.X, EnumPlayerTeleportFlags.Y, EnumPlayerTeleportFlags.Z))
+		set {_packet} to new PacketPlayOutPosition(0.0, 0.0, 0.0, {_yaw}, {_pitch}, {_flags}, 0)
+		{_player}.getHandle().playerConnection.sendPacket({_packet})
+#!! 팔 휘두르기
+function sendSwing(player: player, arm: text="right"):
+	set {_packet} to new play_client_arm_animation packet
+	if {_arm} is "right":
+		set arbitrary penum 0 of {_packet} to "MAIN_HAND"
+	else if {_arm} is "left":
+		set arbitrary penum 0 of {_packet} to "OFF_HAND"
+	recieve packet {_packet} from {_player}
+
+	set {_packet} to new play_server_animation packet
+	set int pnum 0 of {_packet} to {_player}'s id
+	if {_arm} is "right":
+		set int pnum 1 of {_packet} to 0
+	else if {_arm} is "left":
+		set int pnum 1 of {_packet} to 3
+	send packet {_packet} to all players

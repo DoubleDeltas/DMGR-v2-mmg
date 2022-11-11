@@ -1,0 +1,438 @@
+on script load:
+	set {인페르노::체력} to 2000
+	set {인페르노::이동속도} to 0.9
+	set {인페르노::히트박스} to 1.2
+
+	set {인페르노::평::초당화염피해량} to 40
+	set {인페르노::평::화염지속시간} to 3
+	set {인페르노::평R::초당피해량} to 150
+	set {인페르노::평R::사거리} to 7
+	set {인페르노::평L::직격피해량} to 40
+	set {인페르노::평L::폭발피해량} to 120
+	set {인페르노::평L::사거리} to 10
+	set {인페르노::평L::범위} to 3
+	set {인페르노::평L::공격속도} to 1
+
+	set {인페르노::S1::추가피해계수} to 3
+	set {인페르노::S1::회복량감소} to 40
+
+	set {인페르노::P1::증가량} to 40
+	set {인페르노::P1::증가지속시간} to 0.5
+
+	set {인페르노::1::쿨타임} to 6
+	set {인페르노::1::피해량} to 150
+	set {인페르노::1::범위} to 4
+	set {인페르노::1::초당화염피해량} to 40
+	set {인페르노::1::화염지속시간} to 3
+
+	set {인페르노::2::쿨타임} to 12
+	set {인페르노::2::초당화염피해량} to 40
+	set {인페르노::2::지속시간} to 3
+	set {인페르노::2::범위} to 6
+
+	set {인페르노::4::충전량} to 8000
+	set {인페르노::4::초당화염피해량} to 50
+	set {인페르노::4::보호막지급량} to 3000
+	set {인페르노::4::화염지속시간} to 4
+	set {인페르노::4::장판범위} to 3.5
+	set {인페르노::4::히트박스계수} to 1.5
+	set {인페르노::4::지속시간} to 10
+
+	set {인페르노::점수::점프 부스터} to 8
+	set {인페르노::점수::속박} to 10
+	set {인페르노::점수::처치 지원} to 20
+	set {인페르노::점수::궁극기 보너스} to 30
+
+	set {인페르노::특성::이름1} to "융해"
+	set {인페르노::특성::1} to "||&f방벽에 &e⬆&c⚔ 추가 피해&f를 입힙니다.||&f기본 무기로 적이 불타는 동안 &5⬇&a✚ 회복량&f이 감소됩니다.||||&e⬆&c⚔ &f×3.0||&5⬇&a✚ &f40％"
+	set {인페르노::패시브::이름1} to "불꽃의 용기"
+	set {인페르노::패시브::1} to "||&f기본 무기로 적을 공격하는 동안 &e⬆&3❤ 방어력&f이 증가합니다.||||&e⬆&3❤ &f40％||&6⌛ &f0.5초"
+	set {인페르노::액티브::이름1} to "점프 부스터"
+	set {인페르노::액티브::1} to "||&f보는 방향으로 도약하여 착지할 때 &c⚔ 광역 피해&f를 입혀||&5➲ 밀쳐내고 ⚠ 불&f태웁니다.||||&c⚔ &f150||&c✸ &f4m||&5⚠ &6⌛ &f3초||&5⚠ &c⚔ &f초당 40||&f⟳ &f6초||||&7&l[1] &f사용"
+	set {인페르노::액티브::이름2} to "화염 방출"
+	set {인페르노::액티브::2} to "||&6⌛ 지속시간&f동안 화염을 방출해 주변 적을 &5⚠ 불&f태우고||&5✘ 속박&f합니다.||||&6⌛ &f3초||&c✸ &f6m||&5⚠ &c⚔ &f초당 40||&f⟳ &f12초||||&7&l[3] &f사용"
+	set {인페르노::액티브::이름4} to "오버히트"
+	set {인페르노::액티브::4} to "||&6⌛ 지속시간&f동안 화염 방어막을 둘러 &e✚ 보호막&f을 획득하며||&f'점프 부스터'의 쿨타임을 &e⬇&6⟳ 단축&f시키고 지나가는 길에||&5⚠ 화염 지대&f를 생성합니다.||&f사용 중에는 '점프 부스터' 스킬만 사용할 수 있으며,||&e✚ 보호막&f이 전부 파괴되면 궁극기가 해제됩니다.||||&6⌛ &f10초||&e✚ &f3000||&e⬇&6⟳ &f4초||&5⚠ &6⌛ &f4초||&5⚠ &c⚔ &f초당 50||&5⚠ &c✸ &f3.5m||&f⚡ &f8000||||&7&l[4] &f사용"
+function 인페르노_평R_효과음(player: player):
+	playSound("new.block.soul_sand.fall", {_player}, 2, 0)
+	playSound("entity.horse.breathe", {_player}, 2, 0.6)
+	playSound("entity.horse.breathe", {_player}, 2, 1.3)
+function 인페르노_평R(player: player):
+	setItemCooldown({_player}, 1 ticks)
+	인페르노_평R_효과음({_player})
+	setCooldown("%{_player}'s id%-nojump", 3 ticks)
+	setCooldown("%{_player}'s id%-nosprint", 3 ticks)
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location 0.2 right location 0.4 down {_ploc}
+	set {_dir} to vSpread(getLineOfSight({_player}), 16)
+	set {_speed} to 25
+
+	while distance between {_ploc} and {_loc} < skill({_player}, "평R::사거리"):
+		add 1 to {_i}
+		if isNonSolid({_loc}~{_dir}) is false:
+			exit loop
+
+		if distance between {_ploc} and {_loc} > 0.5:
+			set {_target} to nearEnemy({_player}, {_loc}, {Skill::MELEE_HITBOX}*1.5)
+			if {_target} is set:
+				if getMetadata({_target}, "shield") is true:
+					set {_tid} to getMetadata({_target}, "shieldNo")
+				else:
+					set {_tid} to {_target}'s id
+				if {_targets::%{_tid}%} is not set:
+					set {_targets::%{_tid}%} to {_target}
+					damage({_player}, {_target}, skill({_player}, "평R::초당피해량")/20, {_loc}~{_dir}, "normal-평R")
+					burn({_player}, {_target}, skill({_player}, "평::초당화염피해량"), skill({_player}, "평::화염지속시간"), "평")
+					particle("smoke", {_loc}~{_dir}, 0.2, 0.2, 0.2, 0.05, 3)
+					setCooldown("%{_player}'s id%-buff-인페르노-P1", 10 ticks)
+
+		set {_loc} to {_loc}~{_dir}
+		set {_sdir} to vSpread({_dir}, 13)
+		set {_x} to x of {_sdir}
+		set {_y} to y of {_sdir}
+		set {_z} to z of {_sdir}
+
+		if distance between {_ploc} and {_loc} < skill({_player}, "평R::사거리")-1.5:
+			if mod({_i}, 6) = 0:
+				particle("flame", {_loc}, {_x}, {_y}, {_z}, 0.6, 0)
+				particle("smoke", {_loc}, {_x}, {_y}, {_z}, 0.6, 0)
+		if mod({_i}/4, {_speed}/20) = 0:
+			wait 1 tick
+function 인페르노_평L_반동(player: player):
+	set {_hrecoil} to random number between -1.2 to 1.2
+	set {_vrecoil} to -6
+	loop 3 times:
+		if loop-number = 1:
+			set {_hr} to {_hrecoil}*3
+			set {_vr} to {_vrecoil}*3
+		if loop-number = 2:
+			set {_hr} to {_hrecoil}*2
+			set {_vr} to {_vrecoil}*2
+		if loop-number = 3:
+			set {_hr} to {_hrecoil}
+			set {_vr} to {_vrecoil}
+		changeSight({_player}, {_hr}/6, {_vr}/6)
+		wait 1 tick
+function 인페르노_평L_효과음(player: player):
+	playSound("entity.shulker.shoot", {_player}, 3, 1.5)
+	playSound("entity.ghast.shoot", {_player}, 3, 1.1)
+	playSound("random.gun.grenade", {_player}, 3, 0.9)
+	wait 8 tick
+	playSound("entity.wolf.shake", {_player}, 0.6, 1.6)
+function 인페르노_평L_경직(player: player, target: entity, vel: vector):
+	loop 3 times:
+		knockback({_target}, vDiv({_vel}, 3), true)
+		wait 1 tick
+function 인페르노_평L(player: player):
+	setItemCooldown({_player}, 10 ticks, true)
+	setCooldown("%{_player}'s id%-평L-공격속도", parseTimespan(skill({_player}, "평L::공격속도")*20))
+	인페르노_평L_효과음({_player})
+	인페르노_평L_반동({_player})
+	setGunAmmo({_player}, getGunAmmo({_player})-50)
+	setCooldown("%{_player}'s id%-nojump", 8 ticks)
+	setCooldown("%{_player}'s id%-nosprint", 8 ticks)
+	knockback({_player}, getLine({_player}, location 1 horizontally backwards location 0.4 down {_player}, 0.25))
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location 0.2 right location 0.4 down {_ploc}
+	set {_dir} to getLineOfSight({_player})
+	set {_speed} to 30
+
+	while distance between {_ploc} and {_loc} < skill({_player}, "평L::사거리"):
+		if getChar({_player}) = "인페르노":
+			add 1 to {_i}
+			if isNonSolid({_loc}~{_dir}) is false:
+				exit loop
+
+			if distance between {_ploc} and {_loc} > 0.5:
+				set {_target} to nearEnemy({_player}, {_loc}, {Skill::PROJ_HITBOX}*2)
+				if {_target} is set:
+					exit loop
+
+			set {_loc} to {_loc}~{_dir}
+			if mod({_i}, 6) = 0:
+				particle("flame", {_loc}, 0.1, 0.1, 0.1, 0, 10)
+				particle("smoke", {_loc}, 0.15, 0.15, 0.15, 0.05, 10)
+			if mod({_i}/4, {_speed}/20) = 0:
+				wait 1 tick
+		else:
+			exit
+
+	playSound("entity.generic.explode", {_loc}, 3, 1.4)
+	playSound("block.lava.extinguish", {_loc}, 3, 0.8)
+	playSound("random.gun_reverb2", {_loc}, 5, 1)
+	particle("explosionlarge", {_loc}, 0, 0, 0, 0, 1)
+	particle("flame", {_loc},  0.2, 0.2, 0.2, 0.1, 100)
+	particle("lava", {_loc},  0.3, 0.3, 0.3, 1, 40)
+	particle("smokelarge", {_loc}, 0.2, 0.2, 0.2, 0.1, 40)
+	particle("smoke", {_loc}, 0.1, 0.1, 0.1, 0.15, 80)
+
+	if {_target} is set:
+		damage({_player}, {_target}, skill({_player}, "평L::직격피해량"), {_loc}~{_dir})
+	if distance between location 1 up {_player} and {_loc} < skill({_player}, "평L::범위"):
+		if canPass({_loc}, location of {_player}'s head) is true:
+			if canPassShield({_player}, {_loc}, location of {_player}'s head) is true:
+				damage({_player}, {_player}, skill({_player}, "평L::폭발피해량"), {_player}, "normal-평L")
+				인페르노_평L_경직({_player}, {_player}, getLine(location 0.5 down {_loc}, {_player}, 0.45))
+				burn({_player}, {_player}, skill({_player}, "평::초당화염피해량"), skill({_player}, "평::화염지속시간"), "평")
+	loop nearEnemys({_player}, {_loc}, skill({_player}, "평L::범위")):
+		if canPass({_loc}, location of loop-entity's head) is true:
+			if canPassShield({_player}, {_loc}, location of loop-entity's head) is true:
+				damage({_player}, loop-entity, skill({_player}, "평L::폭발피해량"), loop-entity, "normal-평L")
+				인페르노_평L_경직({_player}, loop-entity, getLine(location 0.5 down {_loc}, loop-entity, 0.45))
+				burn({_player}, loop-entity, skill({_player}, "평::초당화염피해량"), skill({_player}, "평::화염지속시간"), "평")
+				setCooldown("%{_player}'s id%-buff-인페르노-P1", 10 ticks)
+function 인페르노_1_이펙트(player: player):
+	loop 18 times:
+		set {_ploc} to location 0.1 up {_player}
+		set pitch of {_ploc} to 0
+		set {_loc::%loop-number%} to location of {_ploc}
+		set {_axis} to getYawAxis({_loc::%loop-number%})
+		set {_dir::%loop-number%} to vMul(getPitchAxis({_loc::%loop-number%}), 0.8)
+		rotate {_axis} around getPitchAxis({_loc::%loop-number%}) by random number between -8 to 8 degrees
+		rotate {_dir::%loop-number%} around getPitchAxis({_loc::%loop-number%}) by random number between -8 to 8 degrees
+		rotate {_dir::%loop-number%} around {_axis} by (360/18)*loop-number degrees
+
+	loop 3 times:
+		loop 18 times:
+			set {_loc} to {_loc::%loop-number-2%}
+			set {_dir} to {_dir::%loop-number-2%}
+			set {_loc::%loop-number-2%} to {_loc}~{_dir}
+			set {_sdir} to vSpread({_dir}, 6)
+			set {_x} to x of {_sdir}
+			set {_y} to y of {_sdir}
+			set {_z} to z of {_sdir}
+			particle("flame", {_loc::%loop-number-2%}, 0, 0, 0, 0.05, 2)
+			particle("explosion", {_loc::%loop-number-2%}, {_x}, {_y}, {_z}, 0.3, 0)
+		wait 1 tick
+function 인페르노_1(player: player):
+	setSkillDuration({_player}, 0, -1)
+	setItemCooldown({_player}, 999 seconds, true)
+	playSound("entity.wither.shoot", {_player}, 3, 0.8)
+	playSound("entity.ghast.shoot", {_player}, 3, 0.8)
+	playSound("block.lava.extinguish", {_player}, 3, 0.6)
+	particle("explosion", {_player}, 0.5, 0.2, 0.5, 0.2, 80)
+	set {_ploc} to location of {_player}
+	if {_player}'s pitch > 10:
+		set pitch of {_ploc} to 10
+	if {_player}'s pitch < -30:
+		set pitch of {_ploc} to -30
+	set {_dir} to getLineOfSight({_ploc}, 1.6)
+	add 0.7 to y of {_dir}
+	if {_player} is on ground:
+		push({_player}, vector 0, 0.3, 0, true)
+		wait 1 tick
+		push({_player}, {_dir}, true)
+		wait 3 tick
+	else:
+		push({_player}, {_dir}, true)
+		wait 4 tick
+
+	while {_player} isn't on ground:
+		if getChar({_player}) = "인페르노":
+			setCooldown("%{_player}'s id%-nojump", 2 ticks)
+			setCooldown("%{_player}'s id%-nosprint", 2 ticks)
+			particle("flame", location 0.5 horizontally backwards location 0.8 up location 0.3 left {_player}, 0, 0.15, 0, 0, 4)
+			particle("flame", location 0.5 horizontally backwards location 0.8 up location -0.3 left {_player}, 0, 0.15, 0, 0, 4)
+			wait 1 tick
+			if isStunned({_player}) is true:
+				set {_exit} to true
+				exit loop
+		else:
+			exit loop
+
+	if getChar({_player}) = "인페르노":
+		setItemCooldown({_player}, 0 ticks)
+		setItemCooldown({_player}, 4 ticks, true)
+		if isUsingSkill({_player}, 3) is true:
+			setSkillCooldown({_player}, 0, rounded skill({_player}, "1::쿨타임")*0.334)
+		else:
+			setSkillCooldown({_player}, 0, rounded skill({_player}, "1::쿨타임"))
+		if {_exit} is not set:
+			push({_player}, vector 0, 0, 0, true)
+			playSound("block.lava.extinguish", {_player}, 3, 0.6)
+			playSound("entity.zombie.break_door_wood", {_player}, 3, 1.5)
+			playSound("entity.generic.explode", {_player}, 3, 1.4)
+			playSound("block.grass.break", {_player}, 3, 0)
+			# particle("flame", {_player}, 1, 0, 1, 0.1, 250)
+			particle("lava", {_player}, 0.6, 0, 0.6, 0.1, 30)
+			particle("smoke", {_player}, 0.8, 0, 0.8, 0.05, 120)
+			인페르노_1_이펙트({_player})
+
+			loop nearEnemys({_player}, {_player}, skill({_player}, "1::범위")):
+				if canPass({_player}, location of loop-entity's head) is true:
+					if canPassShield({_player}, {_player}, location of loop-entity's head) is true:
+						damage({_player}, loop-entity, skill({_player}, "1::피해량"), loop-entity, "normal-1")
+						knockback(loop-entity, getLine(location 1 down {_player}, loop-entity, 0.6))
+						burn({_player}, loop-entity, skill({_player}, "1::초당화염피해량"), skill({_player}, "1::화염지속시간"), "1")
+function 인페르노_2(player: player):
+	setSkillDuration({_player}, 1, -1)
+	setCooldown("%{_player}'s id%-2-지속시간", parseTimespan(skill({_player}, "2::지속시간")*20))
+	playSound("block.piston.contract", {_player}, 2, 0)
+	playSound("block.piston.contract", {_player}, 2, 0)
+
+	loop skill({_player}, "2::지속시간")*20 times:
+		if getChar({_player}) = "인페르노":
+			if isUsingSkill({_player}, 1) is false:
+				exit loop
+
+			playSound("block.lava.extinguish", {_player}, 2, 0)
+			playSound("block.fire.ambient", {_player}, 2, 0)
+
+			loop nearEnemys({_player}, {_player}, skill({_player}, "2::범위")):
+				if canPass({_player}, location of loop-entity's head) is true:
+					if canPassShield({_player}, {_player}, location of loop-entity's head) is true:
+						if loop-entity is a player:
+							setCooldown("%{_player}'s id%-sup-%loop-entity's id%-normal-2", 10 ticks)
+						leash({_player}, loop-entity, 0.15, {인페르노::점수::속박}/skill({_player}, "2::지속시간")/20)
+						burn({_player}, loop-entity, skill({_player}, "2::초당화염피해량"), 0.5, "2")
+			particle("flame", location 1 up {_player}, 0.1, 0.1, 0.1, 0.2, 2)
+
+			loop 3 times:
+				add 4 to {_yaw}
+				add 13 to {_pitch}
+				set {_loc2} to location 1 up {_player}
+				set {_loc3} to location 1 up {_player}
+				set {_loc4} to location 1 up {_player}
+				set yaw of {_loc2} to 0+{_yaw}
+				set yaw of {_loc3} to 120+{_yaw}
+				set yaw of {_loc4} to 240+{_yaw}
+				set pitch of {_loc2} to 0+{_pitch}
+				set pitch of {_loc3} to 15+{_pitch}
+				set pitch of {_loc4} to 30+{_pitch}
+				set {_vel2} to getLineOfSight({_loc2}, 0.15)
+				set {_vel3} to getLineOfSight({_loc3}, 0.15)
+				set {_vel4} to getLineOfSight({_loc4}, 0.15)
+				set {_x2} to x of {_vel2}
+				set {_y2} to y of {_vel2}
+				set {_z2} to z of {_vel2}
+				set {_x3} to x of {_vel3}
+				set {_y3} to y of {_vel3}
+				set {_z3} to z of {_vel3}
+				set {_x4} to x of {_vel4}
+				set {_y4} to y of {_vel4}
+				set {_z4} to z of {_vel4}
+				particle("smoke", location 2.5 forwards {_loc2}, {_x2}, {_y2}, {_z2}, 0.5, 0)
+				particle("smoke", location 2.5 forwards {_loc3}, {_x3}, {_y3}, {_z3}, 0.5, 0)
+				particle("smoke", location 2.5 forwards {_loc4}, {_x4}, {_y4}, {_z4}, 0.5, 0)
+				particle("flame", location 2.5 forwards {_loc2}, {_x2}, {_y2}, {_z2}, 1, 0)
+				particle("flame", location 2.5 forwards {_loc3}, {_x3}, {_y3}, {_z3}, 1, 0)
+				particle("flame", location 2.5 forwards {_loc4}, {_x4}, {_y4}, {_z4}, 1, 0)
+			wait 1 tick
+		if isStunned({_player}) is true:
+			setCooldown("%{_player}'s id%-2-지속시간", 0 ticks)
+			exit loop
+
+	if getChar({_player}) = "인페르노":
+		setSkillCooldown({_player}, 1, rounded skill({_player}, "2::쿨타임"))
+function 인페르노_4_이펙트(player: player):
+	set {_pitch} to 45
+
+	loop 25 times:
+		particle("lava", location 1 up {_player}, 1, 1, 1, 0, 3)
+		add 170 to {_yaw}
+
+		loop 5 times:
+			loop 6 times:
+				set {_loc%loop-number-3%} to location loop-number-1*0 forwards {_player}'s location
+			set yaw of {_loc1} to {_yaw}
+			set yaw of {_loc2} to 60+{_yaw}
+			set yaw of {_loc3} to 120+{_yaw}
+			set yaw of {_loc4} to 180+{_yaw}
+			set yaw of {_loc5} to 240+{_yaw}
+			set yaw of {_loc6} to 300+{_yaw}
+			if {_a} is true:
+				add -0.01*-1 to {_f}
+				if {_f} <= 0:
+					delete {_a}
+			else:
+				add 0.05 to {_f}
+				if {_f} >= 3:
+					set {_a} to true
+			if {_b} is true:
+				add -0.1 to {_u}
+				if {_u} <= 0:
+					delete {_b}
+			else:
+				add 0.001 to {_u}
+				if {_u} >= 10:
+					set {_b} to true
+			add -1 to {_pitch}
+			loop 6 times:
+				set pitch of {_loc%loop-number-3%} to {_pitch}
+				particle("flame", location 0.5 up location {_f} forwards {_loc%loop-number-3%}, 0, 0, 0, 0, 0)
+		playSound("block.lava.extinguish", {_player}, 3, 0)
+		wait 1 tick
+function 인페르노_4_장판(player: player, id: number=0):
+	set {_rloc} to location 0 up {_player}
+
+	loop {-%{_player}%.field::*}:
+		if distance between loop-value and {_rloc} < 1.8:
+			exit
+	set {-%{_player}%.field::%{_id}%} to {_rloc}
+
+	loop skill({_player}, "4::화염지속시간")*5 times:
+		if getChar({_player}) = "인페르노":
+			loop 10 times:
+				if isNonSolid(location 0.1 down {_rloc}) is true:
+					set {_rloc} to location 0.1 down {_rloc}
+					set {-%{_player}%.field::%{_id}%} to {_rloc}
+
+			particle("flame", location 0.1 up {_rloc}, 1.6, 0, 1.6, 0, 8)
+			particle("lava", location 0.1 up {_rloc}, 1.6, 0, 4, 0, 1)
+			particle("smokelarge", location 0.1 up {_rloc}, 1.6, 0, 1.6, 0, 3)
+			loop nearEnemys({_player}, {_rloc}, skill({_player}, "4::장판범위")):
+				if difference between y-coord of {_rloc} and y-coord of loop-entity <= 1.5:
+					if canPass(location 0.5 up {_rloc}, loop-entity's head) is true:
+						burn({_player}, loop-entity, skill({_player}, "4::초당화염피해량"), 1, "4", false)
+			wait 4 tick
+
+	delete {-%{_player}%.field::%{_id}%}
+function 인페르노_4(player: player):
+	setSkillDuration({_player}, 3, rounded skill({_player}, "4::지속시간"))
+	setCooldown("%{_player}'s id%-4-지속시간", parseTimespan(skill({_player}, "4::지속시간")*20))
+	setItemCooldown({_player}, 12 ticks, true)
+	useUlt({_player})
+	setSkillCooldown({_player}, 0, 0)
+	setSkillCooldown({_player}, 1, rounded skill({_player}, "2::쿨타임"))
+	addMetadata({_player}, "hitboxMul", skill({_player}, "4::히트박스계수"))
+	인페르노_4_이펙트({_player})
+	set slot 4 of {_player} to getWeapon("인페르노")
+
+	loop skill({_player}, "4::지속시간")*20+1 times:
+		if getChar({_player}) = "인페르노":
+			if mod(loop-number, 8) = 0:
+				if loop-number < skill({_player}, "4::지속시간")*20-30:
+					playSound("block.lava.ambient", {_player}, 1, random number between 0.8 to 1)
+			if mod(loop-number, 10) = 0:
+				인페르노_4_장판({_player}, loop-number)
+			if loop-number <= 20:
+				addShield({_player}, "인페르노-4", skill({_player}, "4::보호막지급량")/20, skill({_player}, "4::보호막지급량"))
+			particle("lava", location 1 up {_player}, 0.8, 0.8, 0.8, 0.3, 1)
+			set {_dir1} to vMul(vector from yaw loop-number*16 and pitch 0, 2)
+			set {_dir2} to vMul(vector from yaw loop-number*16+120 and pitch 0, 2)
+			set {_dir3} to vMul(vector from yaw loop-number*16+240 and pitch 0, 2)
+			set {_loc} to location 1 up {_player}
+			set {_loc1} to {_loc}~{_dir1}
+			set {_loc2} to {_loc}~{_dir2}
+			set {_loc3} to {_loc}~{_dir3}
+			particleRGB({_loc1}, 0, 0.6, 0, 255, 70, 0, 4)
+			particleRGB({_loc2}, 0, 0.6, 0, 255, 70, 0, 4)
+			particleRGB({_loc3}, 0, 0.6, 0, 255, 70, 0, 4)
+			wait 1 tick
+			if getShield({_player}, "인페르노-4") <= 0:
+				setSkillCooldown({_player}, 3, -1)
+				setCooldown("%{_player}'s id%-4-지속시간", 0 ticks)
+				playSound("block.lava.ambient", {_player}, 2, 0)
+				playSound("item.shield.break", {_player}, 2, 0)
+				playSound("entity.generic.explode", {_player}, 2, 0.8)
+				particle("flame", location 1 up {_player}, 0.2, 0.2, 0.2, 0.15, 200)
+				particle("smoke", location 1 up {_player}, 0.1, 0.1, 0.1, 0.2, 200)
+				particle("smokelarge", location 1 up {_player}, 0.2, 0.2, 0.2, 0.15, 100)
+				exit loop
+
+	if getChar({_player}) = "인페르노":
+		addMetadata({_player}, "hitboxMul", skill({_player}, "4::히트박스계수")*-1)
+		loop 20 times:
+			if getChar({_player}) = "인페르노":
+				addShield({_player}, "인페르노-4", (skill({_player}, "4::보호막지급량")/20)*-1, skill({_player}, "4::보호막지급량"))
+				wait 1 tick

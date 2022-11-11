@@ -1,0 +1,393 @@
+on script load:
+	set {페르델::체력} to 800
+	set {페르델::이동속도} to 1.1
+	set {페르델::히트박스} to 1.0
+
+	set {페르델::평::피해량} to 55
+	set {페르델::평::사거리} to 16
+
+	set {페르델::1::쿨타임} to -3
+	set {페르델::1::충전량} to 3
+	set {페르델::1::최대거리} to 8
+
+	set {페르델::2::쿨타임} to 16
+	set {페르델::2::사거리} to 15
+
+	set {페르델::3::쿨타임} to 14
+	set {페르델::3::피해량} to 600
+	set {페르델::3::범위} to 5
+	set {페르델::3::최대시간} to 10
+
+	set {페르델::4::충전량} to 8000
+	set {페르델::4::피해량} to 2000
+	set {페르델::4::범위} to 7
+
+	set {페르델::점수::암살} to 20
+	set {페르델::점수::적 되돌림} to 8
+	set {페르델::점수::적 체력 되돌림} to 10
+	set {페르델::점수::타임 패러독스} to 8
+	set {페르델::점수::궁극기 보너스} to 25
+	
+	set {페르델::패시브::이름1} to "시간 가속"
+	set {페르델::패시브::1} to "||&f순간이동을 할 때마다 '양자 도약'을 제외한 모든 스킬의||&f쿨타임을 &e⬇&6⟳ 단축&f시킵니다.||||&e⬇&6⟳ &f1초"
+	set {페르델::액티브::이름1} to "양자 도약"
+	set {페르델::액티브::1} to "||&f이동 방향으로 일정 거리를 순간이동합니다.||||&f⬌ &f8m||&f⟳ &f3초 / 3회 충전||||&7&l[1] [좌클릭] &f사용"
+	set {페르델::액티브::이름2} to "엔트로피 역전"
+	set {페르델::액티브::2} to "||&f바라보는 적의 위치를 2초 전으로 되돌리고 &5！ 경직&f시킵니다.||&f적의 체력이 2초 전보다 많으면 적의 체력또한 되돌립니다.||&f시전 중 적에게 공격받으면 취소됩니다.||||&c⬌ &f15m||&f⟳ &f16초||||&7&l[2] &f사용"
+	set {페르델::액티브::이름3} to "타임 패러독스"
+	set {페르델::액티브::3} to "||&f마지막으로 순간이동했던 곳으로 되돌아가 &c⚔ 광역 피해||&f를 입힙니다.||||&c⚔ &f600||&c✸ &f5m||&f⟳ &f14초||||&7&l[3] &f사용 / 이동"
+	set {페르델::액티브::이름4} to "포텐슘 오버텐션"
+	set {페르델::액티브::4} to "||&f에너지를 과충전하고 바라보는 곳으로 순간이동하여||&f폭발을 일으켜 &c⚔ 광역 피해&f를 입힙니다.||||&c⚔ &f2000||&c✸ &f7m||&f⚡ &f8000||||&7&l[4] &f사용"
+function 페르델_평_효과음(player: player):
+	playSound("new.block.beacon.deactivate", {_player}, 2, 2)
+	# playSound("new.entity.bee.sting", {_player}, 2, 1.5)
+	playSound("entity.irongolem.attack", {_player}, 2, 1.3)
+	playSound("entity.firework.large_blast", {_player}, 2.5, 1.4)
+function 페르델_평(player: player):
+	setItemCooldown({_player}, 1 ticks)
+	페르델_평_효과음({_player})
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location of {_ploc}
+	set {_spread} to gunSpread({_player}, 10, 4, 2 ticks, 3 ticks)
+	set {_dir} to vSpread(getLineOfSight({_player}), {_spread}+3)
+	set {_speed} to 60
+
+	while distance between {_ploc} and {_loc} < skill({_player}, "평::사거리"):
+		add 1 to {_i}
+		if isNonSolid({_loc}~{_dir}) is false:
+			set {__loc} to location of {_loc}
+			set {_hitloc} to {_loc}~{_dir}
+			loop 4 times:
+				if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+					set {__loc} to {__loc}~vMul({_dir}, 0.2)
+			particleRGB({__loc}, 0.1, 0.1, 0.1, 140, 0, 255, 4)
+			exit loop
+
+		if distance between {_ploc} and {_loc} > 0.5:
+			set {_target} to nearEnemy({_player}, {_loc}, {Skill::PROJ_HITBOX})
+			if {_target} is set:
+				set {__loc} to location of {_loc}
+				loop 10 times:
+					set {__loc} to {__loc}~vMul({_dir}, 0.5)
+					if isHeadshot({__loc}, {_target}) is true:
+						set {_headshot} to true
+				exit loop
+
+		set {_loc} to {_loc}~{_dir}
+		if mod({_i}, 6) = 0:
+			particleRGB(location 0.2 right location 0.2 down {_loc}, 0, 0, 0, 140, 0, 255, 1)
+		if mod({_i}/4, {_speed}/20) = 0:
+			wait 1 tick
+
+	if {_target} is set:
+		damage({_player}, {_target}, skill({_player}, "평::피해량"), {_loc}~{_dir}, "normal-평", "%{_headshot}%" parsed as boolean)
+function 페르델_1(player: player):
+	if getCooldown("%{_player}'s id%-1-충전량") = 0 ticks:
+		setSkillRegen({_player}, 0)
+		setCooldown("%{_player}'s id%-1-충전량", 2 ticks)
+		if isSkillCooldownFinished({_player}, 1) is false:
+			if item amount of slot 1 of {_player} > 1:
+				subtract 1 from item amount of slot 1 of {_player}
+		if isSkillCooldownFinished({_player}, 2) is false:
+			if item amount of slot 2 of {_player} > 1:
+				subtract 1 from item amount of slot 2 of {_player}
+		if item amount of slot 0 of {_player} = 1:
+			setSkillCooldown({_player}, 0, -1)
+		else:
+			subtract 1 from item amount of slot 0 of {_player}
+		set {_ploc} to location 0.1 up {_player}'s location
+		set {_loc} to {_ploc}
+		set {_rloc} to {_ploc}
+		setMetadata({_player}, "3-위치", {_ploc})
+		setCooldown("%{_player}'s id%-3-최대시간", parseTimespan(skill({_player}, "3::최대시간")*20))
+		loop 2 times:
+			if {_loc} = {_rloc}:
+				wait 1 tick
+				set {_rloc} to {_player}'s location
+		if x-coord of {_loc} = x-coord of {_rloc}:
+			if z-coord of {_loc} = z-coord of {_rloc}:
+				set {_rloc} to location 0.2 horizontally forwards {_player}
+		set y-coord of {_rloc} to y-coord of {_loc}
+		set {_dir} to getLine({_loc}, {_rloc})
+		particle("witchspell", location 1 up {_player}, 0.1, 0.3, 0.1, 0.2, 20)
+
+		while distance between {_ploc} and {_loc} < skill({_player}, "1::최대거리"):
+			add 1 to {_i}
+			set y of {_dir} to 0
+			if isNonSolid({_loc}~{_dir}) is false:
+				if isNonSolid(location 1 up {_loc}~{_dir}) is true:
+					set y of {_dir} to 1
+				else:
+					set {_block} to true
+			if isNonSolid(location 1 up {_loc}~{_dir}) is false:
+				set {_block} to true
+			if {_block} is true:
+				exit loop
+
+			set {_loc} to {_loc}~{_dir}
+			set {_loc::%{_i}%} to {_loc}
+			particleRGB(location 1 up {_loc}, 0, 0, 0, 100, 0, 255, 1)
+
+		if {_loc::%{_i}-3%} is set:
+			if getCooldown("%{_player}'s id%-leash") = 0 ticks:
+				teleport({_player}, {_loc::%{_i}-3%})
+		playSound("entity.endermen.teleport", {_player}, 1.2, random number between 0.95 to 1.05)
+function 페르델_2_경직(target: entity):
+	loop 8 times:
+		knockback({_target}, vector 0, 0, 0, true)
+		wait 1 tick
+function 페르델_2(player: player):
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location of {_ploc}
+	set {_dir} to getLineOfSight({_player})
+	while distance between {_ploc} and {_loc} < skill({_player}, "2::사거리"):
+		add 1 to {_i}
+		if isNonSolid({_loc}~{_dir}) is false:
+			exit loop
+
+		if distance between {_ploc} and {_loc} > 0.5:
+			set {_target} to nearEnemy({_player}, {_loc}, {Skill::TARGET_HITBOX})
+			if {_target} is set:
+				if isLiving({_target}) is true:
+					if "%region at {_target}%" doesn't contain "BattleRed" or "BattleBlue":
+						exit loop
+			delete {_target}
+
+		set {_loc} to {_loc}~{_dir}
+
+	if {_target} is set:
+		setSkillDuration({_player}, 1, -1)
+		loop line between location 1 up {_player} and location (hitbox length of {_target}/2) up {_target} with density 3:
+			particleRGB(loop-location, 0, 0, 0, 160, 0, 255, 1)
+		sendTitle({_target}, "&c&l지정당함!", "", 15 ticks, 0 ticks, 8 ticks)
+		playSound("entity.enderdragon.hurt", {_player}, 2, 1.5)
+		playSound("entity.illusion_illager.prepare_blindness", {_player}, 1.5, 1.4)
+		playSound("entity.illusion_illager.prepare_blindness", {_player}, 1.5, 1.2)
+		set {_hp} to health of {_player}
+
+		loop 20 times:
+			if getChar({_player}) = "페르델":
+				set {_oldloc} to getMetadata({_target}, "oldloc")
+				particle("smoke", location (hitbox length of {_target}/2) up {_target}, 0.2, 0.2, 0.2, 0, 20)
+				particle("critmagic", location (hitbox length of {_target}/2) up {_oldloc}, 0.2, 0.2, 0.2, 0, 20)
+				particleRGB(location (hitbox length of {_target}/2) up {_target}, 0.8, 0.8, 0.8, 160, 40, 230, 4)
+				particleRGB(location (hitbox length of {_target}/2) up {_oldloc}, 0.8, 0.8, 0.8, 125, 0, 255, 4)
+				wait 1 tick
+
+				if {_hp} > health of {_player}:
+					set {_exit} to true
+					exit loop
+				if isStunned({_player}) is true:
+					set {_exit} to true
+					exit loop
+
+		if getChar({_player}) = "페르델":
+			setSkillCooldown({_player}, 1, rounded skill({_player}, "2::쿨타임"))
+			if {_exit} is not set:
+				if {_target} is a player:
+					if getMetadata({_target}, "char") is not set:
+						exit
+					addScore({_player}, "적 되돌림", {페르델::점수::적 되돌림})
+				set {_oldloc} to getMetadata({_target}, "oldloc")
+				set {_oldhp} to getMetadata({_target}, "oldhp")
+				if getHealth({_target}) > {_oldhp}:
+					setHealth({_target}, {_oldhp})
+					if {_target} is a player:
+						addScore({_player}, "적 체력 되돌림", {페르델::점수::적 체력 되돌림})
+				stun({_player}, {_target}, 0.05)
+				damage({_player}, {_target}, 1, {_target}, "normal-2")
+				페르델_2_경직({_target})
+				playSound("entity.illusion_illager.mirror_move", {_target}, 1.5, 0.8)
+				playSound("entity.illusion_illager.mirror_move", {_target}, 1.5, 0.9)
+				playSound("entity.illusion_illager.mirror_move", {_target}, 1.5, 1)
+				particle("witchspell", location (hitbox length of {_target}/2) up {_target}, 0.1, 0.3, 0.1, 0.2, 40)
+				particleRGB(location (hitbox length of {_target}/2) up {_target}, 1, 1, 1, 125, 0, 255, 70)
+				teleport({_target}, {_oldloc})
+				playSound("entity.endermen.teleport", {_target}, 1.5, 0)
+				particle("witchspell", location (hitbox length of {_target}/2) up {_target}, 0.1, 0.3, 0.1, 0.2, 40)
+				particle("critmagic", location 1 up {_target}, 0.2, 0.2, 0.2, 0.7, 150)
+				particleRGB(location (hitbox length of {_target}/2) up {_target}, 1, 1, 1, 125, 0, 255, 70)
+				wait 1 tick
+	else:
+		alert({_player}, "대상을 찾을 수 없습니다.")
+function 페르델_3_이펙트(player: player):
+	loop 16 times:
+		set {_ploc} to location 1 up {_player}
+		set pitch of {_ploc} to 0
+		set {_loc::%loop-number%} to location of {_ploc}
+		set {_axis} to getYawAxis({_loc::%loop-number%})
+		set {_dir::%loop-number%} to vMul(getPitchAxis({_loc::%loop-number%}), 0.3)
+		rotate {_axis} around getPitchAxis({_loc::%loop-number%}) by random number between -8 to 8 degrees
+		rotate {_dir::%loop-number%} around getPitchAxis({_loc::%loop-number%}) by random number between -8 to 8 degrees
+		rotate {_dir::%loop-number%} around {_axis} by (360/16)*loop-number degrees
+
+	loop 13 times:
+		loop 16 times:
+			set {_loc} to {_loc::%loop-number-2%}
+			set {_dir} to {_dir::%loop-number-2%}
+			set {_loc::%loop-number-2%} to {_loc}~{_dir}
+			particleRGB({_loc::%loop-number-2%}, 0.1, 1, 0.1, 105, 0, 255, 2)
+			if loop-number-1 = 13:
+				particle("critmagic", {_loc::%loop-number-2%}, 0, 0, 0, 0.4, 10)
+		if mod(loop-number, 2) = 0:
+			wait 1 tick
+function 페르델_3(player: player):
+	if getCooldown("%{_player}'s id%-3-최대시간") = 0 ticks:
+		resetMetadata({_player}, "3-위치")
+
+	if getMetadata({_player}, "3-위치") is set:
+		setSkillDuration({_player}, 2, -1)
+		setItemCooldown({_player}, 20 ticks, true)
+		set {_tploc} to getMetadata({_player}, "3-위치")
+
+		loop 10 times:
+			if getChar({_player}) = "페르델":
+				particle("smoke", location 1 up {_player}, 0.2, 0.2, 0.2, 0, 20)
+				particle("critmagic", location 1 up {_tploc}, 0.2, 0.2, 0.2, 0, 20)
+				particleRGB(location 1 up {_player}, 0.8, 0.8, 0.8, 160, 40, 230, 4)
+				particleRGB(location 1 up {_tploc}, 0.8, 0.8, 0.8, 105, 0, 255, 4)
+				playSound("entity.illusion_illager.prepare_blindness", {_player}, 1.5, 1.2+loop-number*0.03)
+				wait 1 tick
+
+				if getCooldown("%{_player}'s id%-death") > 0 ticks:
+					set {_exit} to true
+					exit loop
+				if getCooldown("%{_player}'s id%-3-최대시간") = 0 ticks:
+					set {_exit} to true
+					exit loop
+				if isStunned({_player}) is true:
+					set {_exit} to true
+					exit loop
+
+		if getChar({_player}) = "페르델":
+			setSkillCooldown({_player}, 2, rounded skill({_player}, "3::쿨타임"))
+			if {_exit} is not set:
+				if isSkillCooldownFinished({_player}, 1) is false:
+					if item amount of slot 1 of {_player} > 1:
+						subtract 1 from item amount of slot 1 of {_player}
+				if isSkillCooldownFinished({_player}, 2) is false:
+					if item amount of slot 2 of {_player} > 1:
+						subtract 1 from item amount of slot 2 of {_player}
+				setCooldown("%{_player}'s id%-stop", 10 ticks)
+				setCooldown("%{_player}'s id%-3-최대시간", 0 ticks)
+				resetMetadata({_player}, "3-위치")
+				particle("witchspell", location 1 up {_player}, 0.1, 0.3, 0.1, 0.2, 40)
+				particleRGB(location 1 up {_player}, 1, 1, 1, 105, 0, 255, 70)
+				if getCooldown("%{_player}'s id%-leash") = 0 ticks:
+					teleport({_player}, {_tploc})
+				playSound("entity.illusion_illager.mirror_move", {_player}, 3, 0.9)
+				playSound("random.energy", {_player}, 3, 0.7)
+				playSound("new.block.beacon.deactivate", {_player}, 3, 1.3)
+				playSound("new.block.beacon.deactivate", {_player}, 3, 1.5)
+				playSound("new.block.respawn_anchor.deplete", {_player}, 3, 1.4)
+				playSound("new.block.respawn_anchor.deplete", {_player}, 3, 1.6)
+				particle("witchspell", location 1 up {_player}, 0.1, 0.3, 0.1, 0.2, 40)
+				particle("critmagic", location 1 up {_player}, 0.2, 0.2, 0.2, 0.7, 200)
+				particleBlock(lapis lazuli block, location 1 up {_player}, 0.1, 0.1, 0.1, 0.25, 150)
+				particleRGB(location 1 up {_player}, 1, 1, 1, 105, 0, 255, 70)
+				페르델_3_이펙트({_player})
+				set slot 4 of {_player} to getWeapon("페르델")
+
+				loop nearEnemys({_player}, {_player}, skill({_player}, "3::범위")):
+					if canPass({_player}, location of loop-entity's head) is true:
+						if canPassShield({_player}, {_player}, location of loop-entity's head) is true:
+							set {_dmg} to skill({_player}, "3::피해량")
+							set {_dmg} to getDistantDamage({_dmg}, 2, distance between loop-entity's head and {_player})
+							set {_push} to getDistantDamage(0.7, 2.5, distance between loop-entity's head and {_player})
+							damage({_player}, loop-entity, {_dmg}, loop-entity, "normal-3")
+							knockback(loop-entity, getLine(location 1 down {_player}, loop-entity, {_push}))
+	else:
+		alert({_player}, "위치가 지정되지 않았습니다.")
+function 페르델_4_이펙트(player: player):
+	loop 20 times:
+		set {_ploc} to location 1 up {_player}
+		set pitch of {_ploc} to 0
+		set {_loc::%loop-number%} to location of {_ploc}
+		set {_axis} to getYawAxis({_loc::%loop-number%})
+		set {_dir::%loop-number%} to vMul(getPitchAxis({_loc::%loop-number%}), 0.6)
+		rotate {_axis} around getPitchAxis({_loc::%loop-number%}) by random number between -6 to 6 degrees
+		rotate {_dir::%loop-number%} around getPitchAxis({_loc::%loop-number%}) by random number between -6 to 6 degrees
+		rotate {_dir::%loop-number%} around {_axis} by (360/20)*loop-number degrees
+
+	loop 10 times:
+		loop 20 times:
+			set {_loc} to {_loc::%loop-number-2%}
+			set {_dir} to {_dir::%loop-number-2%}
+			set {_loc::%loop-number-2%} to {_loc}~{_dir}
+			particle("witchspell", location 0.4 up {_loc::%loop-number-2%}, 0.1, 1.2, 0.1, 0, 8)
+			set {_sdir} to vSpread({_dir}, 8)
+			set {_x} to x of {_sdir}*0.25
+			set {_z} to z of {_sdir}*0.25
+			particle("dragonbreath", {_loc::%loop-number-2%}, {_x}, random number between -0.1 to 0.1, {_z}, 1, 0)
+			particle("dragonbreath", {_loc::%loop-number-2%}, {_x}, random number between -0.1 to 0.1, {_z}, 1, 0)
+		wait 1 tick
+function 페르델_4(player: player):
+	set {_block} to location 0 up {_player}'s targeted block
+	if (check [block at location 1 up {_block} is air] -> [block at location 1 up {_block} is air]) is true:
+		set {_use} to true
+	if y-coord of {_block} > y-coord of {_player}'s head:
+		if (check [block at location 1 south {_block} is not air] -> [block at location 1 north {_block} is not air] -> [block at location 1 east {_block} is not air] -> [block at location 1 west {_block} is not air]) is true:
+			delete {_use}
+	if {_use} is not set:
+		alert({_player}, "땅을 바라보고 사용하십시오.")
+		exit
+
+	set {_block} to location 1 up {_player}'s targeted block
+	setSkillDuration({_player}, 3, -1)
+	setItemCooldown({_player}, 50 ticks, true)
+	useUlt({_player})
+	# set {_block} to location of {_block}
+	playSound("block.portal.ambient", location 1 up {_block}, 3, 2)
+	playSound("block.portal.ambient", location 1 up {_block}, 3, 2)
+
+	loop 36 times:
+		if getChar({_player}) = "페르델":
+			particle("smoke", location 1 up {_player}, 0.2, 0.2, 0.2, 0, 20)
+			particleRGB(location 1 up {_player}, 0.8, 0.8, 0.8, 150, 0, 255, 8)
+			if loop-number < 8:
+				particle("portal", location 1 up {_block}, 0, 0, 0, 2, 30)
+			particle("smoke", location 1 up {_block}, 0.3, 0.3, 0.3, 0, 25)
+			playSound("entity.illusion_illager.prepare_blindness", {_player}, 3, 0.7)
+			playSound("random.charge", location 1 up {_block}, 3, 0.8)
+			wait 1 tick
+
+			if getCooldown("%{_player}'s id%-death") > 0 ticks:
+				set {_exit} to true
+				exit loop
+			if isStunned({_player}) is true:
+				set {_exit} to true
+				exit loop
+
+	if getChar({_player}) = "페르델":
+		setSkillCooldown({_player}, 3, -1)
+		if {_exit} is not set:
+			setMetadata({_player}, "3-위치", location of {_player})
+			setCooldown("%{_player}'s id%-3-최대시간", parseTimespan(skill({_player}, "3::최대시간")*20))
+			setCooldown("%{_player}'s id%-stop", 14 ticks)
+			if isSkillCooldownFinished({_player}, 1) is false:
+				if item amount of slot 1 of {_player} > 1:
+					subtract 1 from item amount of slot 1 of {_player}
+			if isSkillCooldownFinished({_player}, 2) is false:
+				if item amount of slot 2 of {_player} > 1:
+					subtract 1 from item amount of slot 2 of {_player}
+			particle("witchspell", location 1 up {_player}, 0.1, 0.3, 0.1, 0.2, 40)
+			particleRGB(location 1 up {_player}, 1, 1, 1, 105, 0, 255, 70)
+			if getCooldown("%{_player}'s id%-leash") = 0 ticks:
+				teleport({_player}, {_block})
+			playSound("random.explosion", {_player}, 5, 1.4)
+			playSound("random.energy", {_player}, 5, 0)
+			playSound("new.block.respawn_anchor.deplete", {_player}, 5, 0.5)
+			playSound("new.block.respawn_anchor.deplete", {_player}, 5, 0.6)
+			playSound("random.explosion_reverb", {_player}, 7, 1)
+			playSound("random.explosion_reverb", {_player}, 7, 0.6)
+			particle("dragonbreath", location 4 up {_player}, 0.5, 4, 0.5, 0.04, 1000)
+			페르델_4_이펙트({_player})
+
+			loop nearEnemys({_player}, {_player}, skill({_player}, "4::범위")):
+				if canPass({_player}, location of loop-entity's head) is true:
+					if canPassShield({_player}, {_player}, location of loop-entity's head) is true:
+						set {_dmg} to skill({_player}, "4::피해량")
+						set {_dmg} to getDistantDamage({_dmg}, 3.5, distance between loop-entity's head and {_player}, false)
+						set {_push} to getDistantDamage(1.3, 3.5, distance between loop-entity's head and {_player})
+						damage({_player}, loop-entity, {_dmg}, loop-entity, "normal-4", false, false)
+						knockback(loop-entity, getLine(location 1.5 down {_player}, loop-entity, {_push}))

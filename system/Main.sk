@@ -1,0 +1,750 @@
+import:
+	java.lang.Runtime
+	java.util.Arrays
+	java.lang.String as javaString
+	ch.njol.skript.Skript
+	org.bukkit.Bukkit
+	org.bukkit.ChatColor
+	org.bukkit.scoreboard.Team
+	org.bukkit.scoreboard.Team$Option
+	org.bukkit.scoreboard.NameTagVisibility
+	org.bukkit.scoreboard.Team$OptionStatus
+	org.bukkit.plugin.java.JavaPlugin
+	net.minecraft.server.v1_12_R1.PacketPlayOutPosition
+	net.minecraft.server.v1_12_R1.PacketPlayOutPosition$EnumPlayerTeleportFlags
+	net.minecraft.server.v1_12_R1.PacketPlayOutSpawnEntityLiving
+	net.minecraft.server.v1_12_R1.PacketPlayOutEntityDestroy
+	net.minecraft.server.v1_12_R1.PacketPlayOutScoreboardTeam
+	net.minecraft.server.v1_12_R1.EntityArmorStand
+	com.keenant.tabbed.Tabbed
+	com.keenant.tabbed.item.TextTabItem
+	com.keenant.tabbed.item.PlayerTabItem
+	com.keenant.tabbed.item.BlankTabItem
+	com.keenant.tabbed.util.Skins
+variables:
+	{PREFIX} = "&b&l[ DMGR ]"
+on script load:
+	if {-tabbed} is not set:
+		set {-tabbed} to new Tabbed(Skript.getPlugin(Skript.class))
+
+#!! 플레이어 parser
+function parsePlayer(player: text) :: player:
+	return {_player} parsed as player
+#!! 숫자 parser
+function parseNumber(text: text) :: number:
+	set {_n} to {_text} parsed as number
+	if {_n} is not set:
+		return 0.0
+	return {_n}
+#!! 정수 parser
+function parseInt(text: text) :: integer:
+	set {_n} to {_text} parsed as integer
+	if {_n} is not set:
+		return 0
+	return {_n}
+#!! 로어 parser
+function parseLore(text: text) :: texts:
+	set {_lore::*} to {_text} split by "||"
+	return {_lore::*}
+#!! 시간 parser
+function parseTimespan(text: object) :: timespan:
+	set {_t} to "%{_text}% ticks" parsed as timespan
+	if {_t} is not set:
+		return 0 ticks
+	return {_t}
+#!! 시간 형식 (00:00)
+function parseTimeStringD(time: timespan) :: text:
+	if {_time} is not set:
+		return "00:00"
+
+	set {_display} to "%{_time}%"
+	if {_display} doesn't contain "second":
+		set {_display} to "%{_display}% and 0 second"
+	if {_display} doesn't contain "minute":
+		set {_display} to "0 minute and %{_display}%"
+	replace all " seconds" with "" in {_display}
+	replace all " second" with "" in {_display}
+	replace all " minutes" with "" in {_display}
+	replace all " minute" with "" in {_display}
+	set {_display::*} to {_display} split by " and "
+	if length of {_display::1} = 1:
+		set {_display::1} to "0%{_display::1}%"
+	if length of {_display::2} = 1:
+		set {_display::2} to "0%{_display::2}%"
+
+	set {_display} to "%{_display::1}%:%{_display::2}%"
+	return {_display}
+#!! 시간 형식 (00분 00초)
+function parseTimeStringK(time: timespan) :: text:
+	if {_time} is not set:
+		return "0초"
+
+	set {_display} to "%{_time}%"
+	replace all " " with "" in {_display}
+	replace all "seconds" with "초" in {_display}
+	replace all "second" with "초" in {_display}
+	replace all "minutes" with "분" in {_display}
+	replace all "minute" with "분" in {_display}
+	replace all "hours" with "시간" in {_display}
+	replace all "hour" with "시간" in {_display}
+	replace all "days" with "일" in {_display}
+	replace all "day" with "일" in {_display}
+	replace all "and" with " " in {_display}
+
+	return {_display}
+#!! 소리 재생
+function playSound(sound: text, loc: location, volume: number, pitch: number):
+	set {_vol} to {_volume}
+	if {_vol} < 1:
+		set {_vol} to 1
+
+	loop all players:
+		if getCooldown("%loop-player's id%-nohear") = 0 ticks:
+			if distance between loop-player and {_loc} < {_vol}*16:
+				play sound "%{_sound}%" in master category with volume {_volume} and pitch {_pitch} for loop-player at {_loc}
+function playSoundPlayer(sound: text, player: player, volume: number, pitch: number):
+	if getCooldown("%{_player}'s id%-nohear") = 0 ticks:
+		play sound "%{_sound}%" in master category with volume {_volume} and pitch {_pitch} for {_player} at {_player}
+#!! 타이틀 표시
+function sendTitle(player: player, title: text, subtitle: text, duration: timespan, fadein: timespan, fadeout: timespan, alert: boolean=false):
+	if {_alert} is true:
+		setCooldown("%{_player}'s id%-title", 0 ticks)
+	if getCooldown("%{_player}'s id%-title") = 0 ticks:
+		send title {_title} with subtitle {_subtitle} to {_player} for {_duration} with fade in {_fadein} and fade out {_fadeout}
+
+		if {_alert} is true:
+			add {_fadein} to {_duration}
+			add {_fadeout} to {_duration}
+			setCooldown("%{_player}'s id%-title", {_duration})
+#!! 보스바
+function sendBossbar(player: player, id: text, title: text, value: number, color: text, duration: timespan=999 hours):
+	if {_color} is "blue":
+		create bossbar title {_title} and id {_id} for {_player} with value {_value} with colors blue with style SOLID
+	else if {_color} is "green":
+		create bossbar title {_title} and id {_id} for {_player} with value {_value} with colors green with style SOLID
+	else if {_color} is "pink":
+		create bossbar title {_title} and id {_id} for {_player} with value {_value} with colors pink with style SOLID
+	else if {_color} is "purple":
+		create bossbar title {_title} and id {_id} for {_player} with value {_value} with colors purple with style SOLID
+	else if {_color} is "red":
+		create bossbar title {_title} and id {_id} for {_player} with value {_value} with colors red with style SOLID
+	else if {_color} is "white":
+		create bossbar title {_title} and id {_id} for {_player} with value {_value} with colors white with style SOLID
+	else if {_color} is "yellow":
+		create bossbar title {_title} and id {_id} for {_player} with value {_value} with colors yellow with style SOLID
+
+	wait {_duration}
+	remove bossbar {_id}
+function deleteBossbar(id: text):
+	remove bossbar {_id}
+#!! 경고 액션바 표시
+function alert(player: player, text: text):
+	playSoundPlayer("new.block.note_block.bit", {_player}, 0.25, 0.707)
+	setCooldown("%{_player}'s id%-warning", 1 seconds)
+	send action bar "&e%{_text}%" to {_player}
+	wait 1 tick
+	send action bar "&6%{_text}%" to {_player}
+	wait 1 tick
+	send action bar "&c%{_text}%" to {_player}
+#!! 배열 포함 여부 확인
+function isIncludes(obj: object, array: objects) :: boolean:
+	loop {_array::*}:
+		if loop-value is {_obj}:
+			return true
+	return false
+#!! 메타데이터
+function setMetadata(entity: object, name: text, value: object):
+	set metadata {_name} of {_entity} to {_value}
+function getMetadata(entity: object, name: text) :: object:
+	if metadata {_name} of {_entity} is not set:
+		return {_}
+	return metadata {_name} of {_entity}
+function addMetadata(entity: object, name: text, value: number):
+	set metadata {_name} of {_entity} to parseNumber("%getMetadata({_entity}, {_name})%")+{_value}
+function resetMetadata(entity: entity, name: text):
+	delete metadata {_name} of {_entity}
+#!! 쿨타임
+function setCooldown(id: text, time: timespan):
+	set {-cooldown::%{_id}%} to {_time} later
+function getCooldown(id: text) :: timespan:
+	if {-cooldown::%{_id}%} is not set:
+		return 0 ticks
+	if {-cooldown::%{_id}%} <= now:
+		return 0 ticks
+	return difference between now and {-cooldown::%{_id}%}
+function addCooldown(id: text, time: timespan):
+	if {-cooldown::%{_id}%} is not set:
+		set {-cooldown::%{_id}%} to now
+	set {-cooldown::%{_id}%} to {_time} after {-cooldown::%{_id}%}
+#!! 텔레포트
+function teleport(entity: entity, loc: location):
+	if {_entity} is a player:
+		if {_entity}'s passengers is set:
+			set {_stand} to {_entity}.getHandle().passengers.get(0)
+			if {_stand} is set:
+				set {_packet} to new PacketPlayOutEntityDestroy({_stand}.getId())
+				loop all players:
+					loop-player.getHandle().playerConnection.sendPacket({_packet})
+			{_entity}.getHandle().passengers.clear()
+
+	teleport {_entity} to {_loc}
+
+	if {_entity} is a player:
+		if {_entity}'s gamemode is not spectator:
+			if getMetadata({_entity}, "game") is set:
+				set {_stand} to new EntityArmorStand({_entity}.getWorld().getHandle(), x-coord of {_entity}, y-coord of {_entity}, z-coord of {_entity})
+				{_stand}.setCustomNameVisible(false)
+				{_stand}.setInvulnerable(true)
+				{_stand}.setInvisible(true)
+				{_stand}.setMarker(true)
+				{_entity}.getHandle().passengers.add({_stand})
+				set {_packet} to new PacketPlayOutSpawnEntityLiving({_stand})
+				loop all players:
+					loop-player.getHandle().playerConnection.sendPacket({_packet})
+#!! 진행바 (■■■■■■■■■■)
+function getBar(min: number, max: number, color: text) :: text:
+	if {_min} >= {_max}:
+		set {_text} to "%{_color}%■■■■■■■■■■"
+	else if {_min} > {_max}*0.9:
+		set {_text} to "%{_color}%■■■■■■■■■&0■"
+	else if {_min} > {_max}*0.8:
+		set {_text} to "%{_color}%■■■■■■■■&0■■"
+	else if {_min} > {_max}*0.7:
+		set {_text} to "%{_color}%■■■■■■■&0■■■"
+	else if {_min} > {_max}*0.6:
+		set {_text} to "%{_color}%■■■■■■&0■■■■"
+	else if {_min} > {_max}*0.5:
+		set {_text} to "%{_color}%■■■■■&0■■■■■"
+	else if {_min} > {_max}*0.4:
+		set {_text} to "%{_color}%■■■■&0■■■■■■"
+	else if {_min} > {_max}*0.3:
+		set {_text} to "%{_color}%■■■&0■■■■■■■"
+	else if {_min} > {_max}*0.2:
+		set {_text} to "%{_color}%■■&0■■■■■■■■"
+	else if {_min} > {_max}*0.1:
+		set {_text} to "%{_color}%■&0■■■■■■■■■"
+	else:
+		set {_text} to "&0■■■■■■■■■■"
+
+	return {_text}
+#!! 레벨업 필요 경험치
+function getReqXP(lv: number) :: number:
+	set {_xp} to 350+({_lv}*50)
+	return {_xp}
+#!! 승급 필요 랭크점수
+function getReqRank(rank: number, prev: boolean=false) :: number:
+	set {_req} to 0
+	if {_rank} >= 0:
+		set {_req} to 200
+		if {_prev} is true:
+			set {_req} to 0
+	if {_rank} >= 200:
+		set {_req} to 400
+		if {_prev} is true:
+			set {_req} to 200
+	if {_rank} >= 400:
+		set {_req} to 600
+		if {_prev} is true:
+			set {_req} to 400
+	if {_rank} >= 600:
+		set {_req} to 900
+		if {_prev} is true:
+			set {_req} to 600
+	if {_rank} >= 900:
+		set {_req} to 1200
+		if {_prev} is true:
+			set {_req} to 900
+
+	return {_req}
+#!! 레벨 칭호
+function getLevelPrefix(lv: number) :: text:
+	set {_value1} to mod(floor(({_lv}-1)/400), 5)
+	set {_value2} to mod(floor(({_lv}-1)/100), 4)
+	set {_star} to ""
+	loop {_value2} times:
+		if {_value1} = 0:
+			set {_star} to "%{_star}%&f&l★"
+		if {_value1} = 1:
+			set {_star} to "%{_star}%&a&l★"
+		if {_value1} = 2:
+			set {_star} to "%{_star}%&b&l★"
+		if {_value1} = 3:
+			set {_star} to "%{_star}%&d&l★"
+		if {_value1} = 4:
+			set {_star} to "%{_star}%&c&l★"
+	if {_value2} > 0:
+		set {_star} to "%{_star}% "
+
+	if {_value1} = 0:
+		set {_text} to "%{_star}%&f&l[ Lv.%{_lv}% ]"
+	else if {_value1} = 1:
+		set {_text} to "%{_star}%&a&l[ Lv.%{_lv}% ]"
+	else if {_value1} = 2:
+		set {_text} to "%{_star}%&b&l[ Lv.%{_lv}% ]"
+	else if {_value1} = 3:
+		set {_text} to "%{_star}%&d&l[ Lv.%{_lv}% ]"
+	else if {_value1} = 4:
+		set {_text} to "%{_star}%&c&l[ Lv.%{_lv}% ]"
+
+	return {_text}
+#!! 랭크 칭호
+function getRankPrefix(rank: number) :: text:
+	set {_text} to "&8&l[ F ]"
+	if {_rank} >= 0:
+		set {_text} to "&7&l[ E ]"
+	if {_rank} >= 200:
+		set {_text} to "&f&l[ D ]"
+	if {_rank} >= 400:
+		set {_text} to "&a&l[ C ]"
+	if {_rank} >= 600:
+		set {_text} to "&b&l[ B ]"
+	if {_rank} >= 900:
+		set {_text} to "&d&l[ A ]"
+	if {_rank} >= 1200:
+		set {_text} to "&e&l[ S ]"
+
+	return {_text}
+#!! 레벨업
+function levelUp(player: player):
+	while {%{_player}%::xp} >= getReqXP({%{_player}%::lv}):
+		subtract getReqXP({%{_player}%::lv}) from {%{_player}%::xp}
+		add 1 to {%{_player}%::lv}
+		set {_lvup} to true
+
+	if {_lvup} is true:
+		wait 2 seconds
+		sendTitle({_player}, "%getLevelPrefix({%{_player}%::lv})% &e&l달성!", "", 2 seconds, 0 ticks, 2 seconds, true)
+		playSoundPlayer("random.good", {_player}, 1000, 1)
+#!! 랭크 승급
+function rankUp(player: player, win: boolean):
+	wait 4 seconds
+	if {_win} is true:
+		sendTitle({_player}, "&b&l등급 상승", "%getRankPrefix({%{_player}%::rank})%", 2 seconds, 0 ticks, 2 seconds, true)
+		playSoundPlayer("ui.toast.challenge_complete", {_player}, 1000, 1.5)
+	else:
+		sendTitle({_player}, "&c&l등급 강등", "%getRankPrefix({%{_player}%::rank})%", 2 seconds, 0 ticks, 2 seconds, true)
+		playSoundPlayer("new.block.beacon.deactivate", {_player}, 1000, 1.2)
+#!! 리소스팩 적용
+function applyResourcePack(player: player):
+	if {-%{_player}%.rc} is not set:
+		set {-%{_player}%.rc} to true
+
+		send resource pack from "https://www.dropbox.com/s/pnm6y7dr6qw5rri/DVRSTRP.zip?dl=1" to {_player}
+		# if {%player%::crosshair} is not set:
+		# 	send resource pack from "https://www.dropbox.com/s/3a8k70d10pfeyeg/DVRST112.zip?dl=1" to player
+		# else:
+		# 	if {%player%::crosshair} is 0:
+		# 		send resource pack from "https://www.dropbox.com/s/nm4tk8iok6ly783/DVRST.zip?dl=1" to player
+		# 	if {%player%::crosshair} is 1:
+		# 		send resource pack from "https://www.dropbox.com/s/az4o3797piza3x1/dvrst_cross.zip?dl=1" to player
+		# 	if {%player%::crosshair} is 2:
+		# 		send resource pack from "https://www.dropbox.com/s/bqhsxy0nwlyoxt6/dvrst_cross2.zip?dl=1" to player
+		# 	if {%player%::crosshair} is 3:
+		# 		send resource pack from "https://www.dropbox.com/s/v7vp5wc2whqnp8m/dvrst_dotcross.zip?dl=1" to player
+		# 	if {%player%::crosshair} is 4:
+		# 		send resource pack from "https://www.dropbox.com/s/0g2p0ncutxxlh8b/dvrst_circle.zip?dl=1" to player
+		loop 160 times:
+			if "%{-%{_player}%.raccept}%" is "ACCEPTED" or "SUCCESSFULLY_LOADED":
+				delete {-%{_player}%.rc}
+				exit
+			wait 1 tick
+		delete {-%{_player}%.rc}
+		execute console command "/kick %{_player}% &3&l[ &b&lDMGR &3&l] &6리소스팩 적용을 활성화 해주세요!|&e멀티플레이 → 편집 → 서버 리소스 팩 : 사용||&f다운로드가 되지 않으면, .minecraft → server-resource-packs 폴더를 생성하세요.||&f다운로드 오류 문의 : 디스코드 DarkDace＃4671"
+packet event play_client_resource_pack_status:
+	set {-%player%.raccept} to arbitrary penum 0 of event-packet
+	if "%{-%player%.raccept}%" is "FAILED_DOWNLOAD":
+		wait 1 tick
+		execute console command "/kick %player% &3&l[ &b&lDMGR &3&l] &c리소스팩 적용 중 오류가 발생했습니다.|&f잠시 후 다시 시도하거나, 컴퓨터를 재부팅 하십시오.||&f다운로드 오류 문의 : 디스코드 DarkDace＃4671"
+		delete {-%player%.rc}
+# 서버 입장
+on join:
+	set join message to "&f&l[&a&l+&f&l] &b%player%"
+
+	if {%player%::xp} is not set:
+		set {%player%::xp} to 0
+	if {%player%::lv} is not set:
+		set {%player%::lv} to 1
+	if {%player%::dp} is not set:
+		set {%player%::dp} to 0
+	if {%player%::rank} is not set:
+		set {%player%::rank} to 100
+
+	resetPlayer(player)
+	teleport(player, {spawn})
+	if {%player%::kor} is not set:
+		make player execute command "/kakc chmod 0"
+	loop {uuid::*}:
+		if loop-value = player's uuid:
+			delete {uuid::%loop-index%}
+	set {ip::%player's ip%} to player's name
+	set {uuid::%player's name%} to player's uuid
+	set {uuidname::%player's uuid%} to player's name
+	wait 1 tick
+
+	broadcast "&f&l[&a&l+&f&l] &b현재 인원수는 &3&l%number of all players%명&b입니다."
+
+	applyResourcePack(player)
+	delete {-%player%.rc}
+	delete {-%player%.raccept}
+	# if {%player%::battletuto} is not set:
+	# 	teleport player to {tutospawn}
+	# else:
+
+	send player title "&3Welcome to &b&lDMGR" for 5 seconds with 0 ticks fade in and 40 ticks fade out
+	loop all players:
+		playSoundPlayer("block.note.pling", loop-player, 1000, 0.7)
+		playSoundPlayer("block.note.pling", loop-player, 1000, 0.7)
+		playSoundPlayer("block.note.pling", loop-player, 1000, 0.7)
+		playSoundPlayer("block.note.pling", loop-player, 1000, 0.7)
+	wait 3 tick
+	loop all players:
+		playSoundPlayer("block.note.pling", loop-player, 1000, 1.05)
+		playSoundPlayer("block.note.pling", loop-player, 1000, 1.05)
+		playSoundPlayer("block.note.pling", loop-player, 1000, 1.05)
+		playSoundPlayer("block.note.pling", loop-player, 1000, 1.05)
+	wait 10 tick
+	loop 100 times:
+		send "&f" to player
+
+# 서버 퇴장
+on quit:
+	set quit message to "&f&l[&6&l-&f&l] &b%player%"
+
+	resetPlayer(player)
+	quitGame(player)
+	wait 1 tick
+	
+	broadcast "&f&l[&6&l-&f&l] &b현재 인원수는 &3&l%number of all players%명&b입니다."
+
+	loop all players:
+		playSoundPlayer("block.note.pling", loop-player, 1000, 0.8)
+		playSoundPlayer("block.note.pling", loop-player, 1000, 0.8)
+		playSoundPlayer("block.note.pling", loop-player, 1000, 0.8)
+		playSoundPlayer("block.note.pling", loop-player, 1000, 0.8)
+	wait 3 tick
+	loop all players:
+		playSoundPlayer("block.note.pling", loop-player, 1000, 0.525)
+		playSoundPlayer("block.note.pling", loop-player, 1000, 0.525)
+		playSoundPlayer("block.note.pling", loop-player, 1000, 0.525)
+		playSoundPlayer("block.note.pling", loop-player, 1000, 0.525)
+
+# 채팅
+on chat:
+	cancel event
+	if {%player%::chatsound} is not set:
+		set {%player%::chatsound} to "new.block.note_block.pling"
+
+	if player isn't op:
+		if getCooldown("%player's id%-chat") > 0 ticks:
+			send "%{PREFIX}% &c채팅을 천천히 하십시오." to player
+			exit
+
+	set {_send} to message
+	send "&f<%player's display name%> %{_send}%" to console
+	setCooldown("%player's id%-chat", 3 seconds)
+
+	loop all players:
+		if {-gamemember::%loop-player%} is not set:
+			if {%loop-player%::block::%player's name%} is not set:
+				if {-%player%.opchat} is not set:
+					send "%getRankPrefix({%player%::rank})% %getLevelPrefix({%player%::lv})% &f<%player's display name%> %{_send}%" to loop-player
+					playSoundPlayer({%loop-player%::chatsound}, loop-player, 1000, 1.414)
+				else:
+					if loop-player is an op:
+						send "&7&l[관리자] %getRankPrefix({%player%::rank})% %getLevelPrefix({%player%::lv})% &f<%player's display name%> %{_send}%" to loop-player
+						playSoundPlayer({%loop-player%::chatsound}, loop-player, 1000, 1.414)
+
+# 스폰
+command /spawn:
+	aliases: /exit, /tmvhs, /스폰, /넴주, /로비, /lobby, /fhql
+	trigger:
+		set {_mode} to getGame(player)
+
+		if {_mode} is set:
+			if {-game::%{_mode}%} = "READY" or "START":
+				send "%{PREFIX}% &c게임 진행 중에는 로비에 갈 수 없습니다. 나가려면 &c&l&n'/quit'&c 또는 &c&l&n'/q'&c를 입력하십시오." to player
+				exit
+
+		if getCooldown("%player's id%-spawn") = 0 ticks:
+			setCooldown("%player's id%-spawn", 2 seconds)
+			teleport(player, {spawn})
+			resetPlayer(player)
+		else:
+			send "%{PREFIX}% &c동작이 너무 빠릅니다." to player
+
+
+# 탭리스트 틱
+function sendTablist(player: player, lobby: players, game: players, op: players):
+	set {_player}'s tablist name to "%getRankPrefix({%{_player}%::rank})% %getLevelPrefix({%{_player}%::lv})% &f%{_player}%"
+	if {%{_player}%::battlewin} is not set:
+		set {%{_player}%::battlewin} to 0
+	if {%{_player}%::battlelose} is not set:
+		set {%{_player}%::battlelose} to 0
+	if {%{_player}%::battlequit} is not set:
+		set {%{_player}%::battlequit} to 0
+	loop {%{_player}%::battletime::*}:
+		add loop-value to {_time}
+	set {_totaltime} to parseTimeStringK({_time})
+	set {_freeMemory} to Runtime.getRuntime().freeMemory()/1024/1024
+	set {_totalMemory} to Runtime.getRuntime().totalMemory()/1024/1024
+	set {_memory} to {_totalMemory}-{_freeMemory}
+	if {_freeMemory} < 400:
+		set {_memory} to "&4%{_memory}%"
+	else if {_freeMemory} < 1000:
+		set {_memory} to "&c%{_memory}%"
+	else if {_freeMemory} < 1600:
+		set {_memory} to "&e%{_memory}%"
+	else:
+		set {_memory} to "&a%{_memory}%"
+	set {_ping} to {_player}.getHandle().ping
+	if {_ping} < 60:
+		set {_ping} to "&a%{_ping}%"
+	else if {_ping} < 120:
+		set {_ping} to "&e%{_ping}%"
+	else if {_ping} < 180:
+		set {_ping} to "&c%{_ping}%"
+	else:
+		set {_ping} to "&4%{_ping}%"
+	set {_tps} to Bukkit.getServer().getServer().recentTps[0]
+	if {_tps} < 19:
+		set {_tps} to "&4%{_tps}%"
+	else if {_tps} < 19.4:
+		set {_tps} to "&c%{_tps}%"
+	else if {_tps} < 19.7:
+		set {_tps} to "&e%{_tps}%"
+	else:
+		set {_tps} to "&a%{_tps}%"
+
+	if {-tabbed}.getTabList({_player}) is not set:
+		set {_tab} to {-tabbed}.newTableTabList({_player})
+	set {_tab} to {-tabbed}.getTabList({_player})
+	{_tab}.setBatchEnabled(true)
+	{_tab}.batchUpdate()
+	{_tab}.setHeader("&3&l[ &b&lDMGR &3&l]%nl%%nl%&e[1.12.2] &6스킬 PVP 미니게임 서버")
+	{_tab}.setFooter("&b디스코드 : &d[ /디스코드 ]      &b마인리스트 : &d[ /마인리스트 ]%nl%%nl%&c>> &6서버 주소 : &nDMGR.mcsv.kr&c <<")
+
+	{_tab}.set(0, 0, new TextTabItem("&f&l&n 서버 상태 ", 0, Skins.getPlayer("zasf")))
+	{_tab}.set(0, 2, new TextTabItem("&f PING &7:: %{_ping}% ms", 0, Skins.getPlayer("FranciRoma")))
+	{_tab}.set(0, 3, new TextTabItem("&f 메모리 &7:: %{_memory}% &f/ %Runtime.getRuntime().totalMemory()/1024/1024% (MB)", 0, Skins.getPlayer("AddelBurgh")))
+	{_tab}.set(0, 4, new TextTabItem("&f TPS &7:: %{_tps}% tick/s", 0, Skins.getPlayer("CommandBlock")))
+	{_tab}.set(0, 5, new TextTabItem("&f 접속자 수 &7:: &f%number of all players%명", 0, Skins.getPlayer("MHF_Steve")))
+	{_tab}.set(0, 7, new TextTabItem("&f&n &e&n%{_player}%&f&l&n님의 전적 ", 0, Skins.getPlayer({_player})))
+	{_tab}.set(0, 9, new TextTabItem("&e 승률 &7:: &b%{%{_player}%::battlewin}%승 &f/ &c%{%{_player}%::battlelose}%패 &f(%{%{_player}%::battlewin}/({%{_player}%::battlewin}+{%{_player}%::battlelose})*100%%%)", 0, Skins.getPlayer("StackedGold")))
+	{_tab}.set(0, 10, new TextTabItem("&e 탈주 &7:: &c%{%{_player}%::battlequit}%회 &f(%{%{_player}%::battlequit}/{%{_player}%::battlecount}*100%%%)", 0, Skins.getPlayer("MHF_TNT2")))
+	{_tab}.set(0, 11, new TextTabItem("&e 플레이 시간 &7:: &c%{_totaltime}%", 0, Skins.getPlayer("Olaf_C")))
+
+	loop 19 times:
+		if {_lobby::%loop-number%} is set:
+			{_tab}.set(1, loop-number, new PlayerTabItem({_lobby::%loop-number%}, PlayerTabItem.LIST_NAME_PROVIDER))
+		else:
+			{_tab}.remove(20+loop-number)
+	{_tab}.set(1, 0, new TextTabItem("", 0, Skins.getDot(ChatColor.GREEN)))
+	{_tab}.get(20).setText("&a&l&n 로비 인원 목록 &f(%size of {_lobby::*}%명)")
+
+	loop 19 times:
+		if {_game::%loop-number%} is set:
+			{_tab}.set(2, loop-number, new PlayerTabItem({_game::%loop-number%}, PlayerTabItem.LIST_NAME_PROVIDER))
+		else:
+			{_tab}.remove(40+loop-number)
+	{_tab}.set(2, 0, new TextTabItem("", 0, Skins.getDot(ChatColor.RED)))
+	{_tab}.get(40).setText("&c&l&n 게임 중인 유저 &f(%size of {_game::*}%명)")
+
+	loop 19 times:
+		if {_op::%loop-number%} is set:
+			{_tab}.set(3, loop-number, new PlayerTabItem({_op::%loop-number%}, PlayerTabItem.DISPLAY_NAME_PROVIDER, PlayerTabItem.SKIN_PROVIDER))
+		else:
+			{_tab}.remove(60+loop-number)
+	{_tab}.set(3, 0, new TextTabItem("", 0, Skins.getDot(ChatColor.AQUA)))
+	{_tab}.get(60).setText("&b&l&n 관리자 &f(%size of {_op::*}%명)")
+
+	{_tab}.batchUpdate()
+every 3 seconds:
+	loop all players:
+		if loop-player is an op:
+			add loop-player to {_op::*}
+		else if getGame(loop-player) is not set:
+			add loop-player to {_lobby::*}
+		else:
+			add loop-player to {_game::*}
+
+	loop all players:
+		set {_mode} to getGame(loop-player)
+		if {-game::%{_mode}%} != "READY" or "START":
+			sendTablist(loop-player, {_lobby::*}, {_game::*}, {_op::*})
+# 스폰 틱
+every 1 seconds:
+	loop all players:
+		set {_mode} to getGame(loop-player)
+
+		set {_board} to loop-player.getScoreboard()
+		if {_board} = Bukkit.getScoreboardManager().getMainScoreboard():
+			set {_board} to Bukkit.getScoreboardManager().getNewScoreboard()
+		set {_team} to {_board}.getTeam("Default")
+		if {_team} is not set:
+			set {_team} to {_board}.registerNewTeam("Default")
+		{_team}.setOption(Option.COLLISION_RULE, OptionStatus.NEVER)
+		{_team}.addEntry(loop-player.getName())
+		loop-player.setScoreboard({_board})
+
+		if {%loop-player%::nightvision} is true:
+			apply night vision of tier 1 without particles to loop-player for 1 days replacing existing effect
+		else if loop-player has night vision:
+			remove night vision from loop-player
+		if {-game::%{_mode}%} != "READY" or "START":
+			if slot 8 of loop-player is air:
+				set slot 8 of loop-player to clock named "&e&l메뉴"
+
+			set {_reqxp} to getReqXP({%loop-player%::lv})
+			set {_reqrank} to getReqRank({%loop-player%::rank})
+			set {_reqrank-} to getReqRank({%loop-player%::rank}, true)
+			set {_money} to javaString.format("%%,d", floor({%loop-player%::dp}))
+
+			wipe loop-player's sidebar
+			set name of sidebar of loop-player to "&b&l%loop-player's name%"
+			set score "&f" in sidebar of loop-player to 15
+			set score "&e&l보유 중인 돈" in sidebar of loop-player to 14
+			set score "&6%{_money}%" in sidebar of loop-player to 13
+			set score "&f&f" in sidebar of loop-player to 12
+			set score "&f레벨 : %getLevelPrefix({%loop-player%::lv})%" in sidebar of loop-player to 11
+			set score "%getBar({%loop-player%::xp}, {_reqxp}, "&2")% &2[%{%loop-player%::xp}%/%{_reqxp}%]" in sidebar of loop-player to 10
+			set score "&f&f&f" in sidebar of loop-player to 9
+			set score "&f등급 : %getRankPrefix({%loop-player%::rank})%" in sidebar of loop-player to 8
+			set score "%getBar({%loop-player%::rank}-{_reqrank-}, {_reqrank}-{_reqrank-}, "&3")% &3[%{%loop-player%::rank}%/%{_reqrank}%]" in sidebar of loop-player to 7
+# 인벤토리 클릭 방지
+on inventory click:
+	if name of click item is "&e&l메뉴":
+		cancel event
+# 이름표 가리기
+every 2 seconds:
+	loop all players:
+		if loop-player's passengers is set:
+			set {_stand} to loop-player.getHandle().passengers.get(0)
+			if {_stand} is set:
+				set {_packet} to new PacketPlayOutEntityDestroy({_stand}.getId())
+				loop all players:
+					loop-player-2.getHandle().playerConnection.sendPacket({_packet})
+			loop-player.getHandle().passengers.clear()
+
+		if loop-player's gamemode is not spectator:
+			if (check [getGame(loop-player) is set]) or (check [getTeam(loop-player) contains "pvp"]) is true:
+				set {_stand} to new EntityArmorStand(loop-player.getWorld().getHandle(), x-coord of loop-player, y-coord of loop-player, z-coord of loop-player)
+				{_stand}.setCustomNameVisible(false)
+				{_stand}.setInvulnerable(true)
+				{_stand}.setInvisible(true)
+				{_stand}.setMarker(true)
+				loop-player.getHandle().passengers.add({_stand})
+				set {_packet} to new PacketPlayOutSpawnEntityLiving({_stand})
+				loop all players:
+					loop-player-2.getHandle().playerConnection.sendPacket({_packet})
+
+# 이동 포탈
+on region enter:
+	if "%event-region%" contains "BattleStart":
+		make player execute command "/이동"
+# 명령어
+command /명령어:
+	aliases: /command, /audfuddj
+	trigger:
+		send "&7========================================================"
+		send "&a&l/(메뉴|menu) - &a메뉴 창을 엽니다."
+		send "&a&l/(디스코드|discord) - &a서버 디스코드 주소를 확인합니다."
+		send "&a&l/(마인리스트|minelist|추천) - &a마인리스트 주소를 확인합니다. [추천 보상 존재]"
+		send "&a&l/(종료|퇴장|exit) - &a게임에서 나옵니다."
+		send "&a&l/(귓|tell|w|m) <대상> <메시지> - &a대상에게 개인 메시지를 보냅니다."
+		send "&a&l/(차단|block) - &a차단 관련 명령어를 확인합니다."
+		send "&a&l/(전적|stat) - &a개인 전적을 확인합니다."
+		send "&a&l/(업적|ach[ievement]) - &a개인 전적을 확인합니다."
+		send "&a&l/(돈|dp) - &a돈 관련 명령어를 확인합니다."
+		send "&a&l/(코어|core) - &a전투원에 장착된 코어를 확인합니다."
+		send "&a&l/(경고|warn[ing]) - &a경고 관련 명령어를 확인합니다."
+		send "&a&l/(후원|donate) - &a후원 관련 명령어를 확인합니다."
+		send "&a&l/(칭호|prefix) - &a칭호 관련 명령어를 확인합니다."
+		send "&a&l/(랭크|랭킹|rank[ing]) - &a랭크 관련 명령어를 확인합니다."
+		send "&a&l/(채팅|tc) - &a전투 도중 팀 채팅/전체 채팅을 설정합니다."
+		send "&a&l/(딜테스트|dtest) - &a훈련장에서 사용 가능하며, 딜테스트 관련 명령어를 확인합니다."
+		send "&7========================================================"
+command /디스코드:
+	aliases: /discord, /eltmzhem
+	trigger:
+		send "&f"
+		send "&e공식 디스코드 >> https://discord.gg/zsQh3cD8wD <<"
+		send "&f"
+command /마인리스트:
+	aliases: /minelist, /akdlsfltmxm, /추천, /cncjs
+	trigger:
+		send "&f"
+		send "&e>> https://minelist.kr/servers/DMGR.kro.kr <<"
+		send "&f"
+command /귓 [<player>] [<text>]:
+	aliases: /rnlt, /tell, /w, /m
+	trigger:
+		if arg 1 and arg 2 is set:
+			send "&7&l[귓속말] &f[&e&n%player's name%&f → &e&n%arg 1's name%&f] %arg 2%" to player
+			playSoundPlayer({%player%::chatsound}, player, 1, 1)
+			if {%arg 1%::block::%player's name%} is not set:
+				send "&7&l[귓속말] &f[&e&n%player's name%&f → &e&n%arg 1's name%&f] %arg 2%" to arg 1
+				playSoundPlayer({%arg 1%::chatsound}, arg 1, 1, 1)
+		else:
+			send "&a&l/(귓|tell|w|m) <대상> <메시지>"
+
+# 마인리스트 보상
+on vote:
+	broadcast "&b&l[ 마인리스트 ] &e&n%player%&f님이 &d&l마인리스트&f에 추천하셨습니다."
+	send "&b&l[ 마인리스트 ] &e◈ 추천 보상 &7:: &6+500 DP&f, &2+300 XP" to player
+
+	add 500 to {%player%::dp}
+	add 300 to {%player%::xp}
+	levelUp(player)
+	loop all players:
+		playSoundPlayer("random.levelup", loop-player, 1000, 0.8)
+
+# MOTD
+on server list ping:
+	set motd to "&3&l[ &b&lDMGR &3&l] &6스킬 PVP 서버 &e[1.12.*]"
+
+# 날씨 변경 방지
+on weather change to rain or thunder:
+	cancel event
+# 금지된 명령어 방지
+on command:
+	if player isn't op:
+		if command is "plugins" or "pl" or "help" or "minecraft:help" or "?" or "bukkit:help" or "bukkit:?":
+			send "%{PREFIX}% &c금지된 행동입니다."
+			cancel event
+packet event play_client_tab_complete:
+	if player isn't op:
+		if "%object pinfo 0 of event-packet%" doesn't contain " ":
+			send "%{PREFIX}% &c금지된 행동입니다."
+			cancel event
+# 블록 파괴 방지
+on block place:
+	if player is not op:
+		cancel event	
+on block break:
+	if player is not op:
+		cancel event
+# 블록 상호작용 방지
+on rightclick:
+	if getChar(player) is set:
+		if player isn't an op:
+			if player's tool isn't bow:
+				cancel event
+# 버리기 방지
+on drop:
+	if player isn't op:
+		cancel event
+# 아이템 맞바꾸기 방지
+on swap hand items:
+	cancel event
+# 배고픔 방지
+on hunger meter change:
+	cancel event
+# 해동 방지
+on fade:
+	cancel event
+# 불 번짐 방지
+on burn:
+	cancel event
+# 청크 언로드 방지
+on chunk unload:
+	cancel event

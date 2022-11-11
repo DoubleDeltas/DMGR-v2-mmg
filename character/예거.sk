@@ -1,0 +1,641 @@
+import:
+	org.bukkit.DyeColor
+	org.bukkit.attribute.Attribute
+
+on script load:
+	set {예거::체력} to 1000
+	set {예거::이동속도} to 1.0
+	set {예거::히트박스} to 1.0
+
+	set {예거::평::냉각탄피해량} to 50
+	set {예거::평::냉각탄빙결량} to 18
+	set {예거::평::실탄피해량} to 250
+
+	set {예거::S1::빙결시간} to 1.2
+
+	set {예거::1::쿨타임} to 3
+	set {예거::1::사망쿨타임} to 13
+	set {예거::1::피해량} to 150
+	set {예거::1::체력} to 600
+	set {예거::1::체력회복} to 10
+
+	set {예거::2::쿨타임} to 5
+	set {예거::2::사망쿨타임} to 10
+	set {예거::2::피해량} to 300
+	set {예거::2::내구도} to 400
+	set {예거::2::속박지속시간} to 4
+
+	set {예거::3::쿨타임} to 12
+	set {예거::3::직격피해량} to 50
+	set {예거::3::폭발피해량} to 600
+	set {예거::3::폭파시간} to 5
+	set {예거::3::범위} to 7
+
+	set {예거::4::충전량} to 9000
+	set {예거::4::초당피해량} to 100
+	set {예거::4::초당빙결량} to 60
+	set {예거::4::내구도} to 1000
+	set {예거::4::최소범위} to 4
+	set {예거::4::지속시간} to 20
+
+	set {예거::점수::빙결} to 7
+	set {예거::점수::설랑 보너스} to 15
+	set {예거::점수::곰덫} to 20
+	set {예거::점수::수류탄} to 8
+	set {예거::점수::궁극기 보너스} to 30
+
+	set {예거::점수::설랑 처치} to 15
+	set {예거::점수::곰덫 파괴} to 10
+	set {예거::점수::눈폭풍 발생기 파괴} to 20
+	
+	set {예거::특성::이름1} to "빙결"
+	set {예거::특성::1} to "||&f적의 &5⬇&b➠ 속도&f를 감소시키는 상태이상입니다.||&9빙결 &f수치는 중첩되어 쌓이며, 적이 1.2초동안 피해를||&f받지 않으면 초기화됩니다.||||&5⬇&b➠ &f0％ ~ 100％"
+	set {예거::액티브::이름1} to "설랑"
+	set {예거::액티브::1} to "||&f공격을 돕는 늑대인 &7설랑&f을 소환합니다.||&f예거가 적을 공격하거나 피해를 받으면 적을 &c⚔ 공격&f합니다.||&f주변에 치명상인 적이 있으면 추적합니다.||||&f⟳ &f해제 시 3초 / 사망 시 13초||||&7늑대||&a❤ &f600||&c⚔ &f150||&c⬌ &f20m||||&7&l[1] &f소환 / 해제"
+	set {예거::액티브::이름2} to "MK.3 곰덫"
+	set {예거::액티브::2} to "||&f바닥에 &7곰덫&f을 설치합니다. 적이 밟으면 &c⚔ 피해&f를 입고||&5✘ 속박&f되어 이동이 불가능해집니다.||||&f⟳ &f해제 시 5초 / 파괴 시 10초||||&7곰덫||&a❤ &f400||&c⚔ &f300||&5✘ &f4초||||&7&l[2] &f설치 / 해제"
+	set {예거::액티브::이름3} to "빙결 수류탄"
+	set {예거::액티브::3} to "||&f5초 후 폭발하는 수류탄을 던져 &c⚔ 광역 피해&f를 입히고||&9빙결&f시킵니다. &f완전히 빙결된 경우 &5＠ 기절&f시킵니다.||||&c⚔ &f600||&c✸ &f7m||&5＠ &f1.2초||||&f⟳ &f12초||||&7&l[3] &f핀 뽑기 / 투척"
+	set {예거::액티브::이름4} to "백야의 눈폭풍"
+	set {예거::액티브::4} to "||&7눈폭풍 발생기&f를 던져 &6⌛ 지속시간&f동안 강력한 눈폭풍을 일으켜||&c⚔ 광역 피해&f를 입히고 &9빙결&f시킵니다.||&f눈폭풍 발생기는 파괴될 수 있으며, 눈폭풍의 범위는 시간에||&f따라 점차 넓어집니다.||||&f⚡ &f9000||||&7눈폭풍 발생기||&6⌛ &f20초||&a❤ &f1000||&c⚔ &f초당 100||&c✸ &f4m (0초) ~ 12m (6초)||||&7&l[4] &f사용"
+function 예거_평_반동(player: player):
+	if {_player} has speed:
+		set {_hrecoil} to random number between -0.3 to 0.3
+		set {_vrecoil} to -2.8
+		loop 2 times:
+			if loop-number = 1:
+				set {_hrecoil} to {_hrecoil}*2
+				set {_vrecoil} to {_vrecoil}*2
+			if loop-number = 2:
+				set {_hrecoil} to {_hrecoil}/2
+				set {_vrecoil} to {_vrecoil}/2
+			changeSight({_player}, {_hrecoil}/3, {_vrecoil}/3)
+			wait 1 tick
+	else:
+		set {_hrecoil} to random number between -0.1 to 0.1
+		set {_vrecoil} to -1.3
+		loop 2 times:
+			if loop-number = 1:
+				set {_hrecoil} to {_hrecoil}*2
+				set {_vrecoil} to {_vrecoil}*2
+			if loop-number = 2:
+				set {_hrecoil} to {_hrecoil}/2
+				set {_vrecoil} to {_vrecoil}/2
+			changeSight({_player}, {_hrecoil}/3, {_vrecoil}/3)
+			wait 1 tick
+function 예거_평_효과음(player: player):
+	if {_player} has speed:
+		playSound("random.gun2.psg_1_1", {_player}, 3.5, 1)
+		playSound("random.gun2.m16_1", {_player}, 3.5, 1)
+		playSound("random.gun_reverb", {_player}, 5.5, 0.95)
+		wait 8 tick
+		playSound("entity.magmacube.jump", {_player}, 0.8, random number between 0.925 to 0.975)
+	else:
+		playSound("random.gun2.m16_1", {_player}, 0.8, 1.2)
+		playSound("block.lava.extinguish", {_player}, 0.8, 1.7)
+function 예거_평(player: player):
+	setItemCooldown({_player}, 5 ticks)
+	예거_평_효과음({_player})
+	예거_평_반동({_player})
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location of {_ploc}
+	if name of {_player}'s tool contains "◁▶":
+		set {_dir} to getLineOfSight({_player})
+		set {_dist} to {Skill::MAX_RANGE}
+	else if name of {_player}'s tool contains "◀▷":
+		set {_spread} to gunSpread({_player}, 6, 1.5, 6 ticks, 6 ticks)
+		set {_dir} to vSpread(getLineOfSight({_player}), {_spread}+1)
+		set {_speed} to 80
+		set {_dist} to 25
+		set {_ice} to true
+
+	while distance between {_ploc} and {_loc} < {_dist}:
+		add 1 to {_i}
+		if isNonSolid({_loc}~{_dir}) is false:
+			set {__loc} to location of {_loc}
+			set {_hitloc} to {_loc}~{_dir}
+			loop 4 times:
+				if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+					set {__loc} to {__loc}~vMul({_dir}, 0.2)
+			bulletHit({__loc}, block at {_hitloc})
+			exit loop
+
+		if distance between {_ploc} and {_loc} > 0.5:
+			if {_ice} is true:
+				set {_target} to nearEnemy({_player}, {_loc}, {Skill::PROJ_HITBOX})
+			else:
+				if distance between {_ploc} and {_loc} > 15:
+					set {_target} to nearEnemy({_player}, {_loc}, {Skill::HITS_HITBOX}+0.05)
+				else:
+					set {_target} to nearEnemy({_player}, {_loc}, {Skill::HITS_HITBOX})
+			if {_target} is set:
+				set {__loc} to location of {_loc}
+				loop 10 times:
+					set {__loc} to {__loc}~vMul({_dir}, 0.5)
+					if isHeadshot({__loc}, {_target}) is true:
+						set {_headshot} to true
+				exit loop
+
+		set {_loc} to {_loc}~{_dir}
+		if {_ice} is true:
+			if mod({_i}, 5) = 0:
+				particleRGB(location 0.2 right location 0.2 down {_loc}, 0, 0, 0, 137, 185, 240, 1)
+		else:
+			if mod({_i}, 6) = 0:
+				particle("crit", location 0.2 right location 0.2 down {_loc}, 0, 0, 0, 0, 1)
+		if {_ice} is true:
+			if mod({_i}/4, {_speed}/20) = 0:
+				wait 1 tick
+
+	if {_target} is set:
+		if {_ice} is true:
+			예거_S1({_player}, {_target}, skill({_player}, "평::냉각탄빙결량"), true)
+			damage({_player}, {_target}, skill({_player}, "평::냉각탄피해량"), {_loc}~{_dir}, "normal-평ice")
+		else:
+			damage({_player}, {_target}, skill({_player}, "평::실탄피해량"), {_loc}~{_dir}, "normal-평", "%{_headshot}%" parsed as boolean)
+function 예거_평_조준경(player: player):
+	if name of {_player}'s tool contains "◀▷":
+		apply speed of tier -2 without particles to {_player} for 1 days
+		playSound("entity.wolf.howl", {_player}, 0.6, 1.9)
+		set {-%{_player}%.zoom} to 2.6
+
+		while {_player} has speed:
+			if name of {_player}'s tool doesn't contain "mk.73 elnr":
+				exit loop
+			if getCooldown("%{_player}'s id%-gunreload") > 0 ticks:
+				exit loop
+			wait 1 tick
+
+		remove speed from {_player}
+		playSound("entity.wolf.shake", {_player}, 0.6, 1.9)
+		delete {-%{_player}%.zoom}
+		if getHotbarSlot({_player}) != 4:
+			replace all "◁▶" with "◀▷" in name of slot 4 of {_player}
+	else if name of {_player}'s tool contains "◁▶":
+		remove speed from {_player}
+function 예거_S1(attacker: player, victim: entity, amount: number, freeze: boolean=false):
+	if getCooldown("%{_victim}'s id%-freeze") = 0 ticks:
+		setCooldown("%{_victim}'s id%-slow", parseTimespan(skill({_attacker}, "S1::빙결시간")*20))
+
+	addMetadata({_victim}, "freeze", {_amount})
+	if getMetadata({_victim}, "freeze") >= 100:
+		if {_freeze} is true:
+			freeze({_attacker}, {_victim}, skill({_attacker}, "S1::빙결시간"), {예거::점수::빙결})
+function 예거_1(player: player):
+	if isUsingSkill({_player}, 0) is false:
+		setSkillDuration({_player}, 0, -1)
+		(getMetadata({_player}, "1-개체")).remove()
+		spawn a wolf at {_player}
+		set name of spawned wolf to "&b%{_player}%"
+		set {_mob} to spawned wolf
+		setTeam({_mob}, getTeam({_player}))
+		setMetadata({_mob}, "owner", {_player})
+		setMetadata({_mob}, "mobType", "설랑")
+		setMetadata({_mob}, "baseSpeed", 0.5)
+		setMetadata({_mob}, "bonusSpeed", 0)
+		setMetadata({_mob}, "small", true)
+		setMetadata({_mob}, "living", true)
+		setMetadata({_player}, "1-개체", {_mob})
+		setCooldown("%{_mob}'s id%-god", 5 ticks)
+		entityTick({_mob})
+		wait 1 tick
+		set tamer of {_mob} to {_player}
+		{_mob}.setCollarColor(DyeColor.LIGHT_BLUE)
+		{_mob}.getAttribute(Attribute.GENERIC_FOLLOW_RANGE).setBaseValue(40)
+		setGlowing({_mob}, {_player}, "white")
+		loop 4 times:
+			setMaxHealth({_mob}, skill({_player}, "1::체력"))
+			setHealth({_mob}, parseNumber("%getMetadata({_player}, "1-체력")%"))
+			wait 1 tick
+	else:
+		setSkillCooldown({_player}, 0, rounded skill({_player}, "1::쿨타임"))
+		set {_mob} to getMetadata({_player}, "1-개체")
+		particle("explosion", location 0.4 up {_mob}, 0.2, 0.2, 0.2, 0.05, 15)
+		{_mob}.remove()
+function 예거_2_설치(player: player, mob: entity):
+	wait 1 tick
+	while {_mob} is alive:
+		if getCooldown("%{_mob}'s id%-god") = 0 ticks:
+			delete {_exit}
+
+			loop blocks in radius 1 around {_mob}:
+				if loop-block is not air:
+					set {_exit} to true
+			if {_exit} is not set:
+				damage({_mob}, {_mob}, 9999, {_mob})
+				exit
+
+			set {_target} to nearEnemy({_player}, location 0.5 up {_mob}, 0.8)
+			if {_target} is set:
+				if isLiving({_target}) is true:
+					if canPass(location 0.5 up {_mob}, location 1 up {_target}) is true:
+						setSkillCooldown({_player}, 1, rounded skill({_player}, "2::사망쿨타임"))
+						playSound("entity.sheep.shear", {_target}, 2, 1.2)
+						playSound("new.entity.player.hurt_sweet_berry_bush", {_target}, 2, 0.8)
+						playSound("random.metalhit", {_target}, 2, 1.2)
+						if {_target} is a player:
+							addScore({_player}, "곰덫", {예거::점수::곰덫})
+						leash({_player}, {_target}, skill({_player}, "2::속박지속시간"))
+						damage({_player}, {_target}, skill({_player}, "2::피해량"), location 0.5 up {_target}, "alter-2")
+						setCooldown("%{_target}'s id%-trap", parseTimespan(skill({_player}, "2::속박지속시간")*20))
+						set {_tploc} to location 0.2 up {_mob}
+						set yaw of {_tploc} to yaw of {_target}
+						set pitch of {_tploc} to pitch of {_target}
+						if {_target}.hasAI() is true:
+							teleport({_target}, location 0.2 up {_tploc})
+						(getMetadata({_player}, "2-개체")).remove()
+						exit loop
+
+			particle("townaura", location 0.4 south location 0.6 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location 0.55 south location 0.4 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location 0.4 south location 0.2 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location 0.55 south location 0 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location 0.4 south location -0.2 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location 0.55 south location -0.4 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location 0.4 south location -0.6 east {_mob}, 0, 0, 0, 0, 1)
+
+			particle("townaura", location -0.4 south location 0.6 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location -0.55 south location 0.4 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location -0.4 south location 0.2 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location -0.55 south location 0 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location -0.4 south location -0.2 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location -0.55 south location -0.4 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location -0.4 south location -0.6 east {_mob}, 0, 0, 0, 0, 1)
+
+			particle("townaura", location 0.4 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location 0.2 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location 0 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location -0.2 east {_mob}, 0, 0, 0, 0, 1)
+			particle("townaura", location -0.4 east {_mob}, 0, 0, 0, 0, 1)
+		wait 1 tick
+
+	if getChar({_player}) = "예거":
+		(getMetadata({_player}, "2-개체")).remove()
+function 예거_2(player: player):
+	if isUsingSkill({_player}, 1) is false:
+		set {_ploc} to location of {_player}
+		set {_loc} to location 0.8 horizontally forwards location 0.1 up {_player}
+		set {_loc2} to location 0.8 horizontally forwards location 0.25 down {_player}
+
+		if (check [isNonSolid({_loc}) is false]) or isNonSolid({_loc2}) is true:
+			alert({_player}, "설치가 불가능한 위치입니다.")
+			exit
+		setSkillDuration({_player}, 1, -1)
+		setItemCooldown({_player}, 15 ticks, true)
+		(getMetadata({_player}, "2-개체")).remove()
+		playSound("entity.cat.purreow", {_player}, 0.5, 1.5)
+
+		loop 16 times:
+			if getChar({_player}) = "예거":
+				setCooldown("%{_player}'s id%-stop", 2 ticks)
+				if vector length of velocity of {_player} < 0.1:
+					teleport({_player}, {_ploc})
+				wait 1 tick
+
+				if (check ["%location of {_player}%" != "%{_ploc}%"]) is true:
+					alert({_player}, "움직여서 사용이 취소되었습니다.")
+					setSkillCooldown({_player}, 1, 1)
+					setItemCooldown({_player}, 0 ticks, true)
+					exit
+				if isStunned({_player}) is true:
+					set {_exit} to true
+					exit loop
+
+		if getChar({_player}) = "예거":
+			if {_exit} is not set:
+				spawn a magma cube at {_loc}
+				set {_mob} to spawned magma cube
+				set name of spawned magma cube to "&b%{_player}%"
+				apply invisibility of tier 1 without particles to {_mob} for 1 days
+				예거_2_설치({_player}, {_mob})
+				setTeam({_mob}, getTeam({_player}))
+				setMetadata({_mob}, "owner", {_player})
+				setMetadata({_mob}, "mobType", "곰덫")
+				setMetadata({_mob}, "small", true)
+				setMetadata({_player}, "2-개체", {_mob})
+				setCooldown("%{_mob}'s id%-god", 5 ticks)
+				entityTick({_mob})
+				wait 1 tick
+				set slime size of {_mob} to 1
+				{_mob}.setSilent(true)
+				{_mob}.setAI(false)
+				setGlowing({_mob}, {_player}, "white")
+				playSound("entity.horse.armor", {_player}, 0.5, 1.6)
+				playSound("random.craft", {_player}, 0.5, 1.3)
+				playSound("entity.player.hurt", {_player}, 0.5, 0)
+				loop 4 times:
+					setMaxHealth({_mob}, skill({_player}, "2::내구도"))
+					setHealth({_mob}, skill({_player}, "2::내구도"))
+					wait 1 tick
+			else:
+				setSkillCooldown({_player}, 1, rounded skill({_player}, "2::쿨타임"))
+				setItemCooldown({_player}, 0 ticks, true)
+	else:
+		setSkillCooldown({_player}, 1, rounded skill({_player}, "2::쿨타임"))
+		set {_mob} to getMetadata({_player}, "2-개체")
+		particle("explosion", location 0.2 up {_mob}, 0.2, 0.2, 0.2, 0.05, 15)
+		{_mob}.remove()
+function 예거_3_폭발(player: player, loc: location):
+	set {_loc} to location 0.2 up {_loc}
+	playSound("entity.generic.explode", {_loc}, 4, 1.2)
+	playSound("entity.firework.large_blast", {_loc}, 4, 0.6)
+	playSound("entity.zombie_villager.cure", {_loc}, 4, 1.5)
+	playSound("random.explosion_reverb", {_loc}, 6, 1.2)
+	particle("explosionlarge", {_loc}, 0, 0, 0, 0, 1)
+	particle("fireworkspark", {_loc}, 0, 0, 0, 0.3, 200)
+	particleBlock(ice, {_loc}, 0.2, 0.2, 0.2, 0.5, 300)
+	particleBlock(packed ice, {_loc}, 0.2, 0.2, 0.2, 0.5, 300)
+
+	if distance between location 1 up {_player} and {_loc} < skill({_player}, "3::범위"):
+		if canPass({_loc}, location of {_player}'s head) is true:
+			if canPassShield({_player}, {_loc}, location of {_player}'s head) is true:
+				set {_dmg} to skill({_player}, "3::폭발피해량")
+				set {_dmg} to getDistantDamage({_dmg}, 2.5, distance between {_player}'s head and {_loc})
+				set {_ice} to getDistantDamage(100, 2.5, distance between {_player}'s head and {_loc})
+				set {_push} to getDistantDamage(0.8, 3, distance between {_player}'s head and {_loc})
+				예거_S1({_player}, {_player}, {_ice}, true)
+				damage({_player}, {_player}, {_dmg}, {_player}, "normal-3")
+				knockback({_player}, getLine(location 1 down {_loc}, {_player}, {_push}))
+	loop nearEnemys({_player}, {_loc}, skill({_player}, "3::범위")):
+		if canPass({_loc}, location of loop-entity's head) is true:
+			if canPassShield({_player}, {_loc}, location of loop-entity's head) is true:
+				set {_dmg} to skill({_player}, "3::폭발피해량")
+				set {_dmg} to getDistantDamage({_dmg}, 2.5, distance between loop-entity's head and {_loc})
+				set {_ice} to getDistantDamage(100, 2.5, distance between loop-entity's head and {_loc})
+				set {_push} to getDistantDamage(0.8, 3, distance between loop-entity's head and {_loc})
+				예거_S1({_player}, loop-entity, {_ice}, true)
+				damage({_player}, loop-entity, {_dmg}, loop-entity, "normal-3")
+				knockback(loop-entity, getLine(location 1 down {_loc}, loop-entity, {_push}))
+function 예거_3_발동(player: player):
+	set {_ploc} to location of {_player}'s head
+	set {_loc} to location 0.2 left location 0.4 down {_ploc}
+	set {_dir} to getLineOfSight({_player})
+	set {_speed} to 30
+	set {_hit} to 0
+	set {_cooldown} to getCooldown("%{_player}'s id%-skill3") to ticks
+
+	while distance between {_ploc} and {_loc} < {Skill::MAX_RANGE}:
+		if getChar({_player}) = "예거":
+			add 1 to {_i}
+			if {_cooldown} <= 0:
+				exit loop
+
+			if (check [{_hit} < 5]) or isNonSolid(location 0.1 down {_loc}) is true:
+				if isNonSolid({_loc}~{_dir}) is false:
+					add 1 to {_hit}
+					set {__loc} to location of {_loc}
+					set {_hitloc} to {_loc}~{_dir}
+					loop 4 times:
+						if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+							set {__loc} to {__loc}~vMul({_dir}, 0.2)
+						else:
+							exit loop
+					playSound("random.metalhit", {__loc}, 0.1+vector length of {_dir}*2, random number between 1.2 to 1.3)
+					playSound("new.block.glass.break", {__loc}, 0.1+vector length of {_dir}*2, 2)
+					set {_bounce} to vector between location of block at {_hitloc} and location of block at {__loc}
+					set {_yaw} to yaw of {_bounce}
+					set {_pitch} to pitch of {_bounce}
+					if abs({_pitch}) >= 45:
+						set y of {_dir} to 0 - (y of {_dir})
+					else:
+						set {_hitdir} to floor(mod({_yaw} + 45, 360)/90)
+						if abs({_hitdir}) = 1 or 3:
+							set x of {_dir} to 0 - (x of {_dir})
+						else:
+							set z of {_dir} to 0 - (z of {_dir})
+					set vector length of {_dir} to vector length of {_dir} * 0.32
+
+				if distance between {_ploc} and {_loc} > 0.5:
+					set {_target} to nearEnemy({_player}, {_loc}, {Skill::PROJ_HITBOX})
+					if {_target} is set:
+						if {_targets::%{_target}%} is not set:
+							set {_targets::%{_target}%} to {_target}
+							damage({_player}, {_target}, skill({_player}, "3::직격피해량"), {_loc}~{_dir}, "normal-3")
+							set {_dir} to vMul({_dir}, -0.32)
+						delete {_target}
+
+				set {_loc} to {_loc}~{_dir}
+				if vector length of {_dir} > 0.1:
+					add -0.00026 to vector length of {_dir}
+			if mod({_i}, 4) = 0:
+				particleRGB({_loc}, 0.1, 0.1, 0.1, 120, 220, 240, 3)
+			if mod({_i}/4, {_speed}/20) = 0:
+				if isNonSolid(location 0.1 down {_loc}) is true:
+					subtract 0.055/(({_speed}*4)/20) from y of {_dir}
+				subtract 1 from {_cooldown}
+				wait 1 tick
+		else:
+			exit
+
+	if getChar({_player}) = "예거":
+		예거_3_폭발({_player}, {_loc})
+function 예거_3(player: player):
+	if isUsingSkill({_player}, 2) is false:
+		setSkillDuration({_player}, 2, -1)
+		setItemCooldown({_player}, 6 ticks, true)
+		playSound("entity.cat.purreow", {_player}, 0.5, 1.6)
+
+		loop 6 times:
+			if getChar({_player}) = "예거":
+				wait 1 tick
+				if isStunned({_player}) is true:
+					set {_exit} to true
+					exit loop
+
+		if getChar({_player}) = "예거":
+			if {_exit} is not set:
+				playSound("item.flintandsteel.use", {_player}, 0.8, 1.2)
+				playSound("new.block.chain.place", {_player}, 0.8, 2)
+				setCooldown("%{_player}'s id%-skill3", parseTimespan(skill({_player}, "3::폭파시간")*20))
+
+				loop 100 times:
+					if getChar({_player}) = "예거":
+						if isUsingSkill({_player}, 2) is true:
+							set {_loc} to location 0.2 left location 0.4 down location 0.3 forwards {_player}'s head
+							set pitch of {_loc} to 0
+							particleRGB({_loc}, 0.1, 0.1, 0.1, 120, 220, 240, 3)
+							if getCooldown("%{_player}'s id%-death") > 0 ticks:
+								예거_3_폭발({_player}, {_loc})
+								setSkillCooldown({_player}, 2, rounded skill({_player}, "3::쿨타임"))
+							wait 1 tick
+
+				if getChar({_player}) = "예거":
+					if isUsingSkill({_player}, 2) is true:
+						예거_3_폭발({_player}, {_loc})
+						setSkillCooldown({_player}, 2, rounded skill({_player}, "3::쿨타임"))
+			else:
+				setSkillCooldown({_player}, 2, rounded skill({_player}, "3::쿨타임"))
+	else:
+		예거_3_발동({_player})
+		setSkillCooldown({_player}, 2, rounded skill({_player}, "3::쿨타임"))
+		playSound("entity.witch.throw", {_player}, 1, 0.8)
+function 예거_4_설치(player: player, mob: entity):
+	loop 20 times:
+		if {_mob} is alive:
+			if isNonSolid(location 0.25 up {_mob}) is true:
+				teleport({_mob}, location 0.25 up {_mob})
+			particleRGB({_mob}, 0.5, 0.02, 0.5, 96, 220, 255, 15)
+			particleRGB({_mob}, 0.15, 0.02, 0.15, 80, 80, 110, 6)
+			particle("explosion", {_mob}, 0, -1, 0, 0.3, 0)
+			wait 1 tick
+		else:
+			exit
+
+	set {_time} to skill({_player}, "4::지속시간")*20
+	while {_mob} is alive:
+		add 1 to {_i}
+		if {_i} > {_time}:
+			exit loop
+
+		if {_i} = 1:
+			playSound("item.elytra.flying", {_mob}, 3, random number between 1.2 to 1.4)
+			playSound("item.elytra.flying", {_mob}, 3, random number between 1.7 to 1.9)
+		if {_i} < {_time}-100:
+			if mod({_i}, 30) = 0:
+				playSound("item.elytra.flying", {_mob}, 3, random number between 1.2 to 1.4)
+				playSound("item.elytra.flying", {_mob}, 3, random number between 1.7 to 1.9)
+		if {_i} <= 120:
+			set {_range} to skill({_player}, "4::최소범위")+({_i}/120)*8
+		particleRGB({_mob}, 0.5, 0.02, 0.5, 96, 220, 255, 15)
+		particleRGB({_mob}, 0.15, 0.02, 0.15, 80, 80, 100, 6)
+		particleBlock(ice, {_mob}, {_range}*0.5, 0.1, {_range}*0.5, 0.05, rounded {_range}*6)
+		setCooldown("%{_player}'s id%-ult", 4 ticks)
+
+		loop 6 times:
+			set {_loc} to location of {_mob}
+			set yaw of {_loc} to 0
+			set pitch of {_loc} to 0
+			add 27 to {_yaw}
+			if {_a} is true:
+				set {_f} to 0
+				if {_f} <= 0:
+					set {_f} to 0
+					delete {_a}
+			else:
+				add {_range}/5.333 to {_f}
+				if {_f} >= {_range}:
+					set {_a} to true
+			set {__rloc} to location of {_loc}
+			set yaw of {_loc} to {_yaw}
+			set {_rloc} to getLine(location 1 forwards {__rloc}, location 1 forwards {_loc}, {_range}*0.03)
+			set {_x} to x of {_rloc}
+			set {_z} to z of {_rloc}
+			if {_f} > 1.5:
+				particle("explosion", location 0 up location {_f} forwards {_loc}, {_x}, 0.06, {_z}, 1, 0)
+				particle("explosion", location 0 up location {_f}*-1 forwards {_loc}, {_x}, 0.06, {_z}, 1, 0)
+				particle("snowshovel", location -2.5 up location {_f} forwards {_loc}, 0, 1.4, 0, 0.04, 5)
+				particle("snowshovel", location -2.5 up location {_f}*-1 forwards {_loc}, 0, 1.4, 0, 0.04, 5)
+
+		if mod({_i}, 4) = 0:
+			# play raw sound "ambient.weather.rain" at {_p} with pitch 1.6 volume 4
+			loop nearEnemys({_player}, location of {_mob}, {_range}):
+				if difference between y-coord of location 2 down {_mob} and y-coord of loop-entity <= 5:
+					if canPass(location of {_mob}, location of loop-entity's head) is true:
+						예거_S1({_player}, loop-entity, skill({_player}, "4::초당빙결량")/5)
+						damage({_player}, loop-entity, skill({_player}, "4::초당피해량")/5, loop-entity, "alter-4", false, false)
+		wait 1 tick
+
+	if getChar({_player}) = "예거":
+		(getMetadata({_player}, "4-개체")).remove()
+function 예거_4(player: player):
+	setSkillDuration({_player}, 3, -1)
+	# setCooldown("%{_player}'s id%-skill4", parseTimespan(skill({_player}, "4::지속시간")*20))
+	setItemCooldown({_player}, 6 ticks, true)
+	useUlt({_player})
+	playSound("entity.cat.purreow", {_player}, 0.5, 1.6)
+
+	loop 6 times:
+		if getChar({_player}) = "예거":
+			wait 1 tick
+			if isStunned({_player}) is true:
+				set {_exit} to true
+				exit loop
+
+	if getChar({_player}) = "예거":
+		setSkillCooldown({_player}, 3, -1)
+		if {_exit} is not set:
+			playSound("entity.witch.throw", {_player}, 1, 0.8)
+			set {_ploc} to location of {_player}'s head
+			set {_loc} to location 0.2 left location 0.4 down {_ploc}
+			set {_dir} to getLineOfSight({_player})
+			set {_speed} to 30
+			set {_hit} to 0
+
+			while distance between {_ploc} and {_loc} < {Skill::MAX_RANGE}:
+				if getChar({_player}) = "예거":
+					add 1 to {_i}
+
+					if (check [{_hit} < 5]) or isNonSolid(location 0.1 down {_loc}) is true:
+						if isNonSolid({_loc}~{_dir}) is false:
+							add 1 to {_hit}
+							set {__loc} to location of {_loc}
+							set {_hitloc} to {_loc}~{_dir}
+							loop 4 times:
+								if isNonSolid({__loc}~vMul({_dir}, 0.2)) is true:
+									set {__loc} to {__loc}~vMul({_dir}, 0.2)
+								else:
+									exit loop
+							playSound("random.metalhit", {__loc}, 0.1+vector length of {_dir}*2, random number between 1 to 1.1)
+							playSound("new.block.glass.break", {__loc}, 0.1+vector length of {_dir}*2, 2)
+							set {_bounce} to vector between location of block at {_hitloc} and location of block at {__loc}
+							set {_yaw} to yaw of {_bounce}
+							set {_pitch} to pitch of {_bounce}
+							if abs({_pitch}) >= 45:
+								set y of {_dir} to 0 - (y of {_dir})
+							else:
+								set {_hitdir} to floor(mod({_yaw} + 45, 360)/90)
+								if abs({_hitdir}) = 1 or 3:
+									set x of {_dir} to 0 - (x of {_dir})
+								else:
+									set z of {_dir} to 0 - (z of {_dir})
+							set vector length of {_dir} to vector length of {_dir} * 0.32
+
+						if distance between {_ploc} and {_loc} > 0.5:
+							set {_target} to nearEnemy({_player}, {_loc}, {Skill::PROJ_HITBOX})
+							if {_target} is set:
+								if {_targets::%{_target}%} is not set:
+									set {_targets::%{_target}%} to {_target}
+									set {_dir} to vMul({_dir}, -0.32)
+								delete {_target}
+
+						set {_loc} to {_loc}~{_dir}
+						if vector length of {_dir} > 0.1:
+							add -0.00026 to vector length of {_dir}
+					if mod({_i}, 5) = 0:
+						particleRGB({_loc}, 0.2, 0.2, 0.2, 115, 230, 255, 5)
+						particleRGB({_loc}, 0.2, 0.2, 0.2, 255, 255, 255, 5)
+					if mod({_i}/4, {_speed}/20) = 0:
+						if isNonSolid(location 0.1 down {_loc}) is true:
+							subtract 0.055/(({_speed}*4)/20) from y of {_dir}
+						wait 1 tick
+
+					if isNonSolid(location 0.1 down {_loc}) is false:
+						spawn a magma cube at {_loc}
+						set {_mob} to spawned magma cube
+						set name of spawned magma cube to "&b%{_player}%"
+						apply invisibility of tier 1 without particles to {_mob} for 1 days
+						예거_4_설치({_player}, {_mob})
+						setTeam({_mob}, getTeam({_player}))
+						setMetadata({_mob}, "owner", {_player})
+						setMetadata({_mob}, "mobType", "눈폭풍발생기")
+						setMetadata({_mob}, "small", true)
+						setMetadata({_player}, "4-개체", {_mob})
+						setCooldown("%{_mob}'s id%-god", 5 ticks)
+						entityTick({_mob})
+						wait 1 tick
+						set slime size of {_mob} to 1
+						{_mob}.setSilent(true)
+						{_mob}.setAI(false)
+						setGlowing({_mob}, {_player}, "white")
+						playSound("block.glass.break", {_loc}, 2, 0)
+						playSound("entity.generic.explode", {_loc}, 2, 1.8)
+						playSound("entity.player.hurt", {_loc}, 2, 0)
+						particle("explosion", {_loc}, 0.1, 0.1, 0.1, 0.3, 40)
+						particleBlock(packed ice, {_loc}, 0.2, 0.2, 0.2, 0.5, 80)
+						loop 4 times:
+							setMaxHealth({_mob}, skill({_player}, "4::내구도"))
+							setHealth({_mob}, skill({_player}, "4::내구도"))
+							wait 1 tick
+						exit loop
+				else:
+					exit loop
